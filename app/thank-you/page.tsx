@@ -49,6 +49,7 @@ import {
   X,
 } from '@phosphor-icons/react/dist/ssr';
 
+import { LEGAL } from '../_landing/legal';
 import {
   PRICE,
   SESSION_TIMES_TZ,
@@ -229,32 +230,49 @@ function ThankYou() {
               </strong>
             </p>
 
+            {/* THE CTA ALWAYS RENDERS. This card IS a CTA: the challenge
+                blueprint's community card is the one post-purchase action, and
+                a version of it with the button swapped out is not a quieter
+                card, it is a different component that asks the buyer for
+                nothing.
+
+                It used to render a line saying the invite was on its way by
+                email whenever the link was missing, which is worse than a
+                missing button on two counts: it changed the promise on a
+                post-purchase page, and nobody has built that email. So the
+                button stands in both states and the MISSING case is made loud
+                for us instead of quiet for the buyer. */}
+            <a
+              href={WHATSAPP_INVITE || undefined}
+              target={WHATSAPP_INVITE ? '_blank' : undefined}
+              rel={WHATSAPP_INVITE ? 'noopener noreferrer' : undefined}
+              aria-disabled={WHATSAPP_INVITE ? undefined : true}
+              className={`group mt-7 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-display text-[15px] font-extrabold ${
+                WHATSAPP_INVITE ? '' : 'cursor-not-allowed opacity-70'
+              }`}
+              style={{ color: WA.deep }}
+            >
+              <WhatsappLogo weight="fill" className="h-5 w-5" />
+              Join the Community Here
+              <ArrowRight
+                weight="bold"
+                className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+              />
+            </a>
+
             {WHATSAPP_INVITE ? (
-              <a
-                href={WHATSAPP_INVITE}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group mt-7 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-display text-[15px] font-extrabold"
-                style={{ color: WA.deep }}
-              >
-                <WhatsappLogo weight="fill" className="h-5 w-5" />
-                Join the Community Here
-                <ArrowRight
-                  weight="bold"
-                  className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                />
-              </a>
+              <p className="mt-4 text-[11.5px] text-white/80">
+                Opens in WhatsApp · 1-click join
+              </p>
             ) : (
-              /* Never a dead button to someone who has just paid. */
-              <p className="mt-7 text-[13.5px] font-semibold text-white">
-                Your invite link is on its way by email. Check your inbox in the
-                next few minutes.
+              /* Actionable and true, rather than a promise of automation that
+                 does not exist. The address is the monitored inbox from
+                 legal.ts, so it moves with the client's real support address. */
+              <p className="mt-4 text-[12px] font-semibold text-white/90">
+                Having trouble joining? Write to {LEGAL.email} and we will send
+                your invite.
               </p>
             )}
-
-            <p className="mt-4 text-[11.5px] text-white/80">
-              Opens in WhatsApp · 1-click join
-            </p>
           </div>
         </div>
       </section>
@@ -486,24 +504,27 @@ function ThankYou() {
             Now, join the community and we&rsquo;ll see you inside.
           </p>
 
-          {WHATSAPP_INVITE && (
-            <div className="mt-8">
-              <a
-                href={WHATSAPP_INVITE}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-display text-[15px] font-extrabold shadow-2xl transition-transform duration-200 hover:-translate-y-0.5 sm:w-auto sm:text-[16px]"
-                style={{ color: WA.deep }}
-              >
-                <WhatsappLogo weight="fill" className="h-5 w-5" />
-                Join the Community
-                <ArrowRight
-                  weight="bold"
-                  className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                />
-              </a>
-            </div>
-          )}
+          {/* Same rule as the card above: the closing band asks for the action
+              in both states rather than ending the page on a paragraph. */}
+          <div className="mt-8">
+            <a
+              href={WHATSAPP_INVITE || undefined}
+              target={WHATSAPP_INVITE ? '_blank' : undefined}
+              rel={WHATSAPP_INVITE ? 'noopener noreferrer' : undefined}
+              aria-disabled={WHATSAPP_INVITE ? undefined : true}
+              className={`group inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-white px-7 py-4 font-display text-[15px] font-extrabold shadow-2xl transition-transform duration-200 sm:w-auto sm:text-[16px] ${
+                WHATSAPP_INVITE ? 'hover:-translate-y-0.5' : 'cursor-not-allowed opacity-70'
+              }`}
+              style={{ color: WA.deep }}
+            >
+              <WhatsappLogo weight="fill" className="h-5 w-5" />
+              Join the Community
+              <ArrowRight
+                weight="bold"
+                className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+              />
+            </a>
+          </div>
         </div>
       </section>
 

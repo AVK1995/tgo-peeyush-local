@@ -6,7 +6,7 @@ Everything the build cannot invent. Grouped by who unblocks it.
 
 **Assets (public/ is empty)**
 - Logo (SVG preferred, plus a square mark for OG/favicon)
-- Portrait of Dr. Peeyush for the founder beat (3:4), plus two 1:1 stage stills. NOTE: `public/famous-personalities/` and `public/public-feature/` were dropped in and are NOT wired yet; say which of those to use and they go in as webp.
+- ~~Portrait + stage stills~~ DONE (16 Sep): `peeyush.png` is the founder portrait, the two reserved 1:1 squares under it are gone, and the photographs from `public-feature/` and `famous-personalities/` are two auto-scrolling rails under the bio running in opposite directions (17 appearances, 12 with people; 3 exact duplicates dropped). All 30 files are webp under `public/gallery/`; the originals were removed after wiring, 155 MB down to 1.1 MB.
 - Any session / TEDx / Josh Talks / television stills for the recognition beat
 - ~~Offer stack + bonus covers~~ MOSTLY DONE (15 Sep): `public/system/*.webp` now feeds the hero offer card and three of the four value-stack covers. **Still missing: a 10-Minute Daily Joint Mobility & Pain Relief Playbook cover.** Two different Stress Emergency Toolkit renders were supplied instead; the spare is parked at `/system/guide-stress-alt.webp` and the mobility slot keeps its reserved 1:1 box.
 - The 13 testimonial videos from the Drive folder in COPY-SOURCE.md. **Built and

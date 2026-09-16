@@ -54,6 +54,7 @@ import Link from 'next/link';
 
 import SiteFooter from '@/components/SiteFooter';
 
+import { asset } from './asset-version';
 import { legoDelay } from './lego-style';
 import {
   CHECKOUT_HREF,
@@ -79,12 +80,10 @@ import { C, CtaNote, MediaPlaceholder, PrimaryCTA, SectionHeading } from './shar
  * pull-quote, which is editorial scaffolding rather than a manufactured
  * structure.
  *
- * ⚠️ NO PHOTOGRAPHY EXISTS. /public is empty: there is no portrait of
- * Dr. Peeyush and no TEDx, Josh Talks or television still. The left column
- * therefore runs as three reserved slots at the exact ratios the real shots
- * will take (one 3:4 portrait, two squares beneath), labelled with what belongs
- * in each. Nothing reflows when they land: fill PHOTOS and the boxes become
- * images at the same sizes.
+ * PHOTOGRAPHY LANDED 16 Sep 2026. The left column is the 3:4 portrait and
+ * nothing else; the two reserved squares that sat under it are gone, because
+ * the appearances they were holding space for are now the two photo rails under
+ * the bio.
  *
  * ⚠️ FLAG FOR ATUL 1 — A DUPLICATED CLAUSE. "His work has reached 1M+ people on
  * YouTube, along with appearances on TEDx, Josh Talks and television" is
@@ -96,29 +95,119 @@ import { C, CtaNote, MediaPlaceholder, PrimaryCTA, SectionHeading } from './shar
  * is to cut the CLAUSE from this paragraph, not to cut the band — and that is a
  * copy edit, so it is flagged, not made.
  *
- * ⚠️ FLAG FOR ATUL 2 — TWO ORPHAN DIRECTION NOTES. The source copy repeats
- * "Move from right to left" and "Move from left to right" immediately under
- * this bio, with nothing between them. In the testimonial section those two
- * lines are direction notes for the two clip rails; here they mark a second
- * pair of rails for which NO content was supplied — no stills, no captions, no
- * clips, not even a count. NOTHING IS BUILT FOR THEM. Two empty marquees under
- * the founder's bio would be thirteen more reserved boxes on a page that
- * already carries thirteen, and inventing what travels in them would be
- * inventing proof. If the intent was a photo marquee of the TEDx / Josh Talks /
- * television appearances, supply the stills and it becomes two `kz-rail` rows
- * here in one pass, using the machinery already in ./proof.
+ * THE TWO ORPHAN DIRECTION NOTES ARE ANSWERED. The source copy repeats "Move
+ * from right to left" and "Move from left to right" immediately under this bio
+ * with nothing between them, and for three passes nothing was built for them,
+ * because inventing what travelled in them would have been inventing proof.
+ * Atul supplied the photographs on 16 Sep: they are now two `kz-rail` rows in
+ * those two directions, run on the same machinery as the testimonial rails in
+ * ./proof.
  */
-/* TO GO LIVE: put the files under /public/images and set the paths here as
-   asset('/images/whatever.jpg') (import { asset } from './asset-version'), the
-   same convention COVERS follows in ./toolkit. The path is the cache key in the
-   browser, at the CDN edge and in Next's image optimizer, so a photograph
-   replaced under the same filename changes nothing for anyone except the person
-   who swapped it: bump ASSET_V in the same pass as any in-place replacement.
-   Anything left null keeps its reserved box at the same ratio. */
-const PHOTOS: { lead: string | null; small: [string | null, string | null] } = {
-  lead: null,
-  small: [null, null],
-};
+/* RESOLVED 16 Sep 2026. The portrait landed, and the two reserved squares under
+   it are gone: in their place are the two photo rails the source copy's own
+   "Move from right to left" / "Move from left to right" notes asked for.
+
+   Every path goes through asset() so the version is the cache key: a photograph
+   replaced under the same filename reaches nobody otherwise. Bump ASSET_V in the
+   same pass as any in-place replacement. */
+const PORTRAIT = asset('/gallery/peeyush-portrait.webp');
+
+/**
+ * The two rails under the bio.
+ *
+ * Each photograph keeps its OWN width. The two folders hold a mix of 3:2
+ * landscape, 3:4 portrait, 4:3 and one 2.2:1 panorama, and forcing that into a
+ * uniform card would crop a head out of a frame in a section whose whole job is
+ * to show the man himself. So the rail fixes the HEIGHT and lets width follow
+ * the picture, which is how a contact strip reads anyway.
+ *
+ * The files are pre-sized to exactly 560px tall, so `w` and `h` below are the
+ * real intrinsic dimensions. They are declared rather than measured at runtime
+ * because a rail of thirty images whose widths arrive one network response at a
+ * time would reflow the row under the reader's eye as it scrolls.
+ *
+ * Row one is his public appearances, row two the people he is photographed
+ * with, which is the split the two folders already make.
+ */
+type Shot = { src: string; w: number; h: number };
+
+const ROW_APPEARANCES: Shot[] = [
+  { src: asset('/gallery/feature-0t9a0473.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-dsc01521.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-dsc01522.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-dr-peeyush-prabhat-tedx-jpg.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/feature-img-0163.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-img-7841.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-img-7842-1.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-img-9846.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-lamping.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-tedx-png.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/feature-wa-2023-04-02-at-19-00-46-2.webp'), w: 750, h: 560 },
+  { src: asset('/gallery/feature-img-0153.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-img-20250821-182825.webp'), w: 1243, h: 560 },
+  { src: asset('/gallery/feature-speking-tree-2.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/feature-dsc9893.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-dsc9901.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/feature-dsc9968.webp'), w: 840, h: 560 },
+];
+
+const ROW_PEOPLE: Shot[] = [
+  { src: asset('/gallery/people-award-with-poonam-dillon.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/people-dsc02587.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/people-img-0162.webp'), w: 840, h: 560 },
+  { src: asset('/gallery/people-tedx.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/people-wa-2023-04-02-at-18-58-07.webp'), w: 747, h: 560 },
+  { src: asset('/gallery/people-wa-2023-04-02-at-18-59-54.webp'), w: 747, h: 560 },
+  { src: asset('/gallery/people-wa-2023-04-02-at-19-00-46-1.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/people-wa-2024-09-15-at-15-06-18-b754354c.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/people-wa-2024-09-15-at-15-06-19-96374f7d.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/people-wa-2024-11-14-at-3-47-30-pm.webp'), w: 500, h: 560 },
+  { src: asset('/gallery/people-wa-2025-07-13-at-1-58-35-pm.webp'), w: 420, h: 560 },
+  { src: asset('/gallery/people-img-1-1723179744289.webp'), w: 840, h: 560 },
+];
+
+/**
+ * One self-scrolling row, on the same `kz-rail` machinery as the testimonial
+ * rails in ./proof: the track holds the set TWICE and travels exactly -50%, so
+ * the loop is seamless, and the duplicate is aria-hidden so a screen reader
+ * hears each photograph once.
+ *
+ * No card, no mat, no caption. These are documentary frames rather than
+ * exhibits, and thirty of them in thirty white boxes would read as a stock
+ * grid. A hairline and a soft radius, and the photographs do the work.
+ */
+function PhotoRail({ shots, reverse = false, label }: { shots: Shot[]; reverse?: boolean; label: string }) {
+  return (
+    <div className="kz-rail" role="region" aria-label={label}>
+      <div className={`kz-rail-track${reverse ? ' kz-rail-track--reverse' : ''}`}>
+        {[0, 1].map((copy) =>
+          shots.map((shot, idx) => (
+            <figure
+              key={`${copy}-${idx}`}
+              aria-hidden={copy === 1 ? true : undefined}
+              className="h-[140px] shrink-0 overflow-hidden rounded-2xl sm:h-[176px]"
+              style={{ border: `1px solid ${C.line}`, background: C.surface }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={shot.src}
+                alt=""
+                width={shot.w}
+                height={shot.h}
+                loading="lazy"
+                decoding="async"
+                /* Height is fixed by the figure, width follows the picture. The
+                   intrinsic pair above still ships so the browser reserves the
+                   right width before the bytes arrive. */
+                className="h-full w-auto max-w-none object-cover"
+              />
+            </figure>
+          )),
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* One slot. Renders the real image when a path exists and a reserved box at the
    same ratio when it does not, so the two states are never different sizes. */
@@ -162,29 +251,17 @@ function Guide() {
       </SectionHeading>
 
       <div className="mx-auto mt-12 max-w-[1060px] lg:grid lg:grid-cols-[0.8fr_1fr] lg:items-start lg:gap-12">
-        {/* One lead portrait with two squares beneath it. The pair sits in its
-            own 2-up grid so both stay equal width whatever the column does. */}
-        <div className="mb-10 flex flex-col gap-3 lg:mb-0">
+        {/* The portrait alone now. The two squares that used to sit under it are
+            gone: the appearances they were reserving are the two rails below the
+            bio, and repeating that evidence twice in one section would make the
+            column longer without making it say more. */}
+        <div className="mb-10 lg:mb-0">
           <GuideShot
-            src={PHOTOS.lead}
+            src={PORTRAIT}
             ratio="3 / 4"
             label="Dr. Peeyush portrait · 3:4"
             alt="Dr. Peeyush Prabhat, MBBS doctor, orthopaedic surgeon and health coach"
           />
-          <div className="grid grid-cols-2 gap-3">
-            <GuideShot
-              src={PHOTOS.small[0]}
-              ratio="1 / 1"
-              label="TEDx or Josh Talks stage still · 1:1"
-              alt="Dr. Peeyush Prabhat speaking on stage"
-            />
-            <GuideShot
-              src={PHOTOS.small[1]}
-              ratio="1 / 1"
-              label="Television appearance still · 1:1"
-              alt="Dr. Peeyush Prabhat during a television appearance"
-            />
-          </div>
         </div>
 
         <div>
@@ -251,6 +328,16 @@ function Guide() {
             feeling better.
           </p>
         </div>
+      </div>
+
+      {/* The two rails the source copy asked for under this bio, in its own two
+          directions: right to left, then left to right. They sit OUTSIDE the
+          1060px column so they run the full width of the band, which is what
+          makes a strip read as a strip rather than as a widget inside a column.
+          The negative margin cancels the section's own side padding. */}
+      <div className="-mx-4 mt-12 space-y-4 sm:mt-16">
+        <PhotoRail shots={ROW_APPEARANCES} label="Dr. Peeyush Prabhat, public appearances" />
+        <PhotoRail shots={ROW_PEOPLE} reverse label="Dr. Peeyush Prabhat with guests and audiences" />
       </div>
     </section>
   );
