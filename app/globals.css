@@ -1,0 +1,986 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  DR. PEEYUSH PRABHAT · DEEP CYAN CLINIC · tokens
+ *
+ *  The locked challenge skin (Kaizen Warm Navy), re-branded onto Dr. Peeyush's
+ *  OWN theme, measured off breathforhealth.in/breath (THEME-SOURCE.md).
+ *  Structure, rhythm, component anatomy, effects, timings and easing are all
+ *  unchanged: ONLY the palette and the two font families move.
+ *
+ *  ⚠️ THE SECTION RHYTHM IS THE SKIN'S, NOT HIS SITE'S. His page is dark end
+ *  to end; this page is NOT. The challenge blueprint's rhythm governs:
+ *
+ *      LIGHT bands alternating (--canvas / --canvas-2), the HERO as the single
+ *      dark stage, and dark below the hero ONLY as a contained object inside a
+ *      light band (the live-sessions card, the Option 2 card, the dark video
+ *      bed). Never a dark band.
+ *
+ *  His palette is the brand identity that goes INTO that rhythm; it does not
+ *  replace the rhythm. An earlier pass turned every band dark to match his
+ *  site and that was the error this file corrects.
+ *
+ *  Mirrors app/_landing/shared.tsx (the TS half) and tailwind.config.ts (the
+ *  utility half). All three carry the same values and must be changed
+ *  together. Anything a pseudo-element needs has to live here, because inline
+ *  styles cannot reach ::before.
+ *
+ *  ⚠️ The token NAMES are deliberately unchanged (--navy-deep, --gold-*,
+ *  --coral-*). Twelve component files reference them; renaming them for the
+ *  sake of accuracy would be a rename across the whole page for zero visual
+ *  gain. Read them as roles, not as colours:
+ *      --navy-deep = the dark stage FLOOR   (here: his page ground #06141C)
+ *      --gold-*    = THE ACCENT             (here: cyan)
+ *      --coral-*   = THE SPARK              (here: red, urgency only)
+ *
+ *  THE ONE RULE THAT DECIDES EVERY ACCENT CHOICE ON THIS PAGE:
+ *  #06B6D4 is a BRIGHT accent. It is 7.7:1 on his dark ground and only 2.4:1
+ *  on this light one, so on light it is a FILL and a GRAPHIC, never text. The
+ *  accent therefore runs in three steps, exactly as the skin's gold /
+ *  gold-deep / gold-ink split did, and the suffix means the same thing it
+ *  means in the skin:
+ *      --gold       his value. Text and glyphs ON DARK; a fill on light.
+ *      --gold-deep  LARGE text on light (3.6:1). Headline highlight, price,
+ *                   the focus ring. Never a label.
+ *      --gold-ink   SMALL text and eyebrows on light (5.2:1). Never backwards:
+ *                   getting this pair the wrong way round is how a page ends
+ *                   up with illegible eyebrows.
+ *  Emerald follows the same convention: --emerald is his value for dark
+ *  grounds, --emerald-ink is the step that reads on light.
+ *
+ *  Contrast is derived, never eyeballed. Every ratio below is computed against
+ *  --canvas unless stated.
+ * ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* environment. Never pure white (C12): #FAFDFE is faintly COOL, which is the
+     mirror of the skin's warm cream and the right ground under a cyan brand. */
+  --canvas: #fafdfe;
+  /* The alternating band. Cool near-NEUTRAL, not pale cyan, for the same reason
+     the skin's band is warm grey rather than warm gold: five sections standing
+     on the accent is a page standing on its own highlight. */
+  --canvas-2: #f0f4f5;
+  /* The card. KEPT from the dark pass and re-pointed: on light, "the card" is
+     the one surface ABOVE both grounds, so it is plain white and its edge is
+     carried by --line plus a shadow. */
+  --surface: #ffffff; /* 15.5:1 with --ink */
+  --ink: #0e2733; /* headings and body. His own card teal, now the page ink.
+                     15.1:1 on --canvas, 14.0:1 on --canvas-2 */
+  --ink-soft: #4a6472; /* secondary body. 6.1:1 on --canvas, 5.7:1 on the band */
+  --navy-deep: #06141c; /* THE DARK STAGE. His page ground, verbatim: the hero,
+                           the announcement rail, and every contained dark
+                           object below the fold are built from this. 17.7:1 */
+  --on-dark: #f2fafc; /* text on the dark stage. Cool off-white, never pure */
+  --on-accent: #04141c; /* KEPT. Ink ON the bright cyan pill. 7.7:1 on --gold */
+
+  /* the accent: CYAN, spent like a spotlight (C2), never the ground */
+  --gold: #06b6d4; /* his accent, verbatim. 7.7:1 on the stage; on LIGHT it is a
+                      fill only (2.4:1), never type */
+  --gold-pale: #eff3f4; /* eyebrow and icon beds. Cool near-neutral, so the page
+                           does not turn every icon into a cyan object */
+  --gold-wash: #e2f6fa; /* the ONE accent SURFACE. Money moments only.
+                           --gold-ink holds 4.8:1 on it, --ink 13.8:1 */
+  --gold-mid: #22d3ee; /* hairline flourishes and rules ONLY, never a numeral.
+                          1.8:1, decorative by design */
+  --gold-deep: #0891b2; /* LARGE text, the price, the focus ring. 3.6:1 */
+  --gold-ink: #0e7490; /* small text and eyebrows. 5.2:1 on --canvas, 4.8:1 on
+                          --gold-pale, so it is safe at 10-11px on the bed */
+  --cta-gold: #06b6d4; /* the CTA fill ON THE DARK STAGE. His pill, verbatim;
+                          the label is --on-accent. The light page's primary is
+                          --ink, because a 2.4:1 pill on white is not a button */
+
+  /* the SECOND accent: EMERALD. Ticks, guarantees, confirmation */
+  --emerald: #10b981; /* his value. 7.4:1 on the stage; a fill on light */
+  --emerald-ink: #047857; /* NEW. Emerald as a tick or as text ON LIGHT.
+                             5.4:1 on --canvas, 4.9:1 on --navy-bed */
+  --navy-bed: #e6f6f0; /* the emerald icon bed */
+
+  /* the spark: RED, scarcer than the accent. Live dots, ✗ marks, one bloom.
+     Back to HIS #DC2626: it failed on the dark ground (3.9:1) and had to be
+     lightened there; on light it clears small text at 4.7:1. */
+  --coral: #dc2626; /* 4.7:1 */
+  --coral-bed: #fdeaea;
+  --coral-ink: #b91c1c; /* red as TEXT. 6.3:1 on canvas, 5.6:1 on the bed —
+                           the pills that use it are 10px, so it has to clear
+                           4.5 on the BED, not just the canvas */
+
+  /* rules. Cool grey, a hair off neutral so they sit under a cyan brand */
+  --line: #e2e9eb;
+  --line-strong: #c8d4d8;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* The page is a LIGHT page with one dark stage at the top, so the browser's
+     own furniture (scrollbar, overscroll gutter, native controls) stays light.
+     `color-scheme: dark` was set while the whole page was dark and is removed
+     with it: left in place it paints a dark scrollbar down the side of a light
+     page, which is the loudest tell that a page was re-tinted rather than
+     designed. */
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  /* The audience is adults living with chronic pain, stress and lifestyle
+     health concerns, reading on a phone. The base sits a notch above the usual
+     15/16px and nothing on this page relies on a hairline weight. */
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Poppins 800 is his headline voice, and the tracking is not optional: his h1
+   runs 60px at -1.5px, which is -0.025em. A geometric sans at 800 without
+   negative tracking reads as a default browser heading. The weight here is the
+   floor; the display headings also carry font-extrabold, because a Tailwind
+   utility out-specifies an element selector and would otherwise pin them at the
+   600 they were set at for the serif. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+h1 {
+  letter-spacing: -0.025em;
+}
+
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  SCROLL REVEAL (motion-lite)
+ *  framer-motion's whileInView, done with one IntersectionObserver and CSS, so
+ *  the page ships no animation runtime. Hidden states are gated behind `.bw-js`
+ *  which layout.tsx sets before first paint: no-JS users and crawlers always
+ *  see full content, and there is no reveal flash. (C7 fail-open.)
+ * ═══════════════════════════════════════════════════════════════════════ */
+.bw-js .bw-reveal-up,
+.bw-js .bw-reveal-up-sm,
+.bw-js .bw-reveal-left,
+.bw-js .bw-reveal-right,
+.bw-js .bw-reveal-scale,
+.bw-js .bw-reveal-fade {
+  opacity: 0;
+}
+.bw-js .bw-reveal-up { transform: translate3d(0, 24px, 0); }
+.bw-js .bw-reveal-up-sm { transform: translate3d(0, 14px, 0); }
+.bw-js .bw-reveal-left { transform: translate3d(32px, 0, 0); }
+.bw-js .bw-reveal-right { transform: translate3d(-32px, 0, 0); }
+.bw-js .bw-reveal-scale { transform: scale(0.96); }
+
+.bw-reveal {
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.bw-reveal.bw-in {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.bw-hover-scale { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+.bw-hover-scale:hover { transform: scale(1.02); }
+.bw-hover-lift { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.bw-hover-lift:hover { transform: translateY(-4px) !important; }
+.bw-hover-lift-sm { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.bw-hover-lift-sm:hover { transform: translateY(-3px) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE LEGO SYSTEM (entrance choreography)
+ *
+ *  One motion idea everywhere: a piece is brought down from above, it
+ *  overshoots its slot by a hair, and it CLICKS into place. The overshoot is
+ *  the whole trick — a plain ease-out reads as "faded in"; the small bounce
+ *  past the resting point reads as "seated". (C6/C7.)
+ *
+ *  A section opts in with an attribute, never a component:
+ *    data-lego            drop and click, once
+ *    data-lego-loop       the same, re-armed on exit so it replays
+ *    data-lego="x"        slide in from the side instead of dropping
+ *    data-lego-stud       the small icon tile, pops just after its parent
+ *    style={legoDelay(i)} stagger within a group
+ * ═══════════════════════════════════════════════════════════════════════ */
+@keyframes lego-snap {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -32px, 0) scale(0.94) rotate(var(--lego-tilt, -1.4deg));
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(0, 5px, 0) scale(1.014) rotate(0deg);
+  }
+  68% { transform: translate3d(0, -3px, 0) scale(0.996) rotate(0deg); }
+  84% { transform: translate3d(0, 1.5px, 0) scale(1.003) rotate(0deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes lego-snap-x {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--lego-from, -26px), -14px, 0) scale(0.95);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(calc(var(--lego-from, -26px) * -0.09), 3px, 0) scale(1.012);
+  }
+  76% { transform: translate3d(0, -2px, 0) scale(0.997); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes lego-stud {
+  0% { opacity: 0; transform: translate3d(0, -12px, 0) scale(0.6); }
+  60% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.12); }
+  80% { transform: scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+
+.bw-js [data-lego],
+.bw-js [data-lego-loop] {
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.bw-js [data-lego].lego-in,
+.bw-js [data-lego-loop].lego-in {
+  animation: lego-snap 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--lego-d, 0ms);
+}
+.bw-js [data-lego='x'].lego-in,
+.bw-js [data-lego-loop='x'].lego-in {
+  animation-name: lego-snap-x;
+}
+.bw-js [data-lego-stud] { opacity: 0; }
+.bw-js [data-lego-stud].lego-in {
+  animation: lego-stud 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(var(--lego-d, 0ms) + 130ms);
+}
+
+/* Once the entrance has finished, hand the transform back to :hover. Without
+   this the `both` fill-mode pins the element and the hover lift does nothing. */
+.bw-js [data-lego].lego-done,
+.bw-js [data-lego-loop].lego-done,
+.bw-js [data-lego-stud].lego-done {
+  animation: none;
+  opacity: 1;
+}
+
+/* ── hover: off the studs, then pressed back on ─────────────────────────── */
+.lego-hover {
+  transition:
+    transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.32s ease;
+}
+/* Back on a light ground, so the lift is sold by the SHADOW again (teal-tinted,
+   never neutral black) with a thin cyan stud line along the top edge. The dark
+   pass had these inverted, which is correct on a dark page and reads as a
+   smudge on a light one. */
+.lego-hover:hover {
+  transform: translate3d(0, -6px, 0) scale(1.012);
+  box-shadow:
+    0 2px 0 0 rgba(6, 182, 212, 0.34),
+    0 20px 38px -20px rgba(14, 39, 51, 0.3);
+}
+.lego-hover:active {
+  transform: translate3d(0, -1px, 0) scale(0.994);
+  transition-duration: 0.09s;
+}
+
+.lego-hover-sm {
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+.lego-hover-sm:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow: 0 12px 22px -16px rgba(14, 39, 51, 0.3);
+}
+.lego-hover-sm:active {
+  transform: translate3d(0, 0, 0) scale(0.996);
+  transition-duration: 0.09s;
+}
+
+/* Soft: a rise with no scale and no tilt, for the largest cards where the full
+   brick lift is too much travel for the area being moved. */
+.lego-hover-soft {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.lego-hover-soft:hover {
+  transform: translate3d(0, -4px, 0);
+  box-shadow: 0 18px 34px -22px rgba(14, 39, 51, 0.32);
+}
+
+/* Icon-only: the generous hover target stays, but only the glyph moves. For
+   rows where the TEXT is the payload (the stat figures) and shifting it costs
+   more than the feedback is worth. */
+.lego-hover-icon { transition: none; }
+.lego-hover-icon:hover,
+.lego-hover-icon:active { transform: none; }
+
+/* The stud tile reacts to the whole piece being hovered, not to itself, so the
+   card reads as one object rather than two things animating separately. */
+.lego-stud { transition: transform 0.34s cubic-bezier(0.34, 1.6, 0.64, 1); }
+.lego-hover:hover .lego-stud,
+.lego-hover-sm:hover .lego-stud,
+.lego-hover-soft:hover .lego-stud,
+.lego-hover-icon:hover .lego-stud {
+  transform: translate3d(0, -2px, 0) rotate(-6deg) scale(1.1);
+}
+
+.lego-press {
+  transition: transform 0.26s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.26s ease;
+}
+.lego-press:hover { transform: translate3d(0, -3px, 0); }
+.lego-press:active {
+  transform: translate3d(0, 1px, 0) scale(0.985);
+  transition-duration: 0.08s;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  ATTENTION — only ever on something the reader can act on (C7)
+ * ═══════════════════════════════════════════════════════════════════════ */
+@keyframes lego-pulse-dot {
+  0% { box-shadow: 0 0 0 0 var(--dot-pulse, rgba(220, 38, 38, 0.5)); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.lego-pulse-dot {
+  animation: lego-pulse-dot 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* The primary CTA's breath: a cyan ring that swells and settles over a
+   teal-tinted seat. The one instance that carries it is the button inside the
+   hero's white offer card, so the rest state is a shadow rather than a bloom:
+   a standing glow belongs to the cyan pill on the dark stage, and repeating it
+   here would put two blooms on one screen. Only ONE instance per screen. */
+@keyframes cta-breath {
+  0%, 100% {
+    box-shadow:
+      0 14px 30px -14px rgba(14, 39, 51, 0.5),
+      0 0 0 0 rgba(6, 182, 212, 0);
+  }
+  50% {
+    box-shadow:
+      0 14px 30px -14px rgba(14, 39, 51, 0.5),
+      0 0 0 8px rgba(6, 182, 212, 0.22);
+  }
+}
+.cta-breath { animation: cta-breath 3s ease-in-out infinite; }
+.cta-breath:hover { animation-play-state: paused; }
+
+/* The shimmer. A single narrow highlight crosses the button, then rests for
+   most of the cycle — a continuous sweep reads as a loading bar, not as light. */
+@keyframes cta-shimmer {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  22%, 100% { transform: translateX(320%) skewX(-18deg); }
+}
+.cta-shimmer { position: relative; overflow: hidden; isolation: isolate; }
+.cta-shimmer > * { position: relative; z-index: 2; }
+.cta-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 34%;
+  z-index: 1;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    var(--shimmer, rgba(255, 255, 255, 0.38)),
+    transparent
+  );
+  animation: cta-shimmer 5.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE HERO STAGE — atmosphere, never a flat fill (C5)
+ *
+ *  THE PAGE'S ONE DARK BAND, per the blueprint: light theme, hero in dark.
+ *  Built from his deep teals rather than the skin's navy, and lit the way his
+ *  own hero is lit — cyan from the top left, emerald from the right, copied in
+ *  placement and in intent. The floor ramps darker downward so the stage seats
+ *  itself against the light page it hands over to at the seam.
+ * ═══════════════════════════════════════════════════════════════════════ */
+.kz-stage {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 62% 52% at 20% 0%, rgba(6, 182, 212, 0.18), transparent 58%),
+    radial-gradient(ellipse 58% 50% at 84% 26%, rgba(16, 185, 129, 0.14), transparent 62%),
+    radial-gradient(ellipse 46% 40% at 58% 98%, rgba(6, 182, 212, 0.1), transparent 66%),
+    linear-gradient(178deg, #0a1f2a 0%, #06141c 58%, #041016 100%);
+}
+.kz-stage > * { position: relative; z-index: 2; }
+.kz-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image: radial-gradient(rgba(6, 182, 212, 0.24) 1px, transparent 1px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse 74% 62% at 50% 42%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 74% 62% at 50% 42%, #000 0%, transparent 78%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+/* The seam where the dark stage hands over to the light page. The value change
+   already marks the join, so this is a flourish rather than the horizon line:
+   a soft cyan hairline, not a bright one. */
+.kz-stage-seam {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.55), transparent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE 5-DAY SPINE  (the page's ONE heavy motion moment)
+ *
+ *  The rail fills as you scroll and each numbered node ignites when the fill
+ *  reaches it. Progress is a single CSS variable (--tl-p, 0 → 1) written by a
+ *  rAF-throttled scroll handler; everything else is pure CSS off that variable,
+ *  so scrolling never triggers a React render per frame.
+ *
+ *  The node's centring transform and its snap animation sit on DIFFERENT
+ *  elements (.tl-node positions, .tl-node-inner animates) because one element
+ *  cannot both hold a centring translate and keyframe its transform.
+ * ═══════════════════════════════════════════════════════════════════════ */
+.tl-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 19px;
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.tl-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: top center;
+  transform: scaleY(var(--tl-p, 0));
+  /* The fill ends in INK: on a light page the rail darkens into the page as it
+     runs out, which reads as the progress travelling downward rather than as
+     the rail switching off. */
+  background: linear-gradient(180deg, #22d3ee 0%, #0891b2 46%, #0e2733 100%);
+  border-radius: 3px;
+  transition: transform 0.12s linear;
+}
+
+.tl-node {
+  position: absolute;
+  top: 24px;
+  left: 19px;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+.tl-node-inner {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  color: var(--ink-soft);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    background 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.3s ease,
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Lit: the glow reads as the rail's light spilling out of the node, not as a
+   drop shadow. The node goes BRIGHT rather than dark, which is a deliberate
+   departure from the skin's navy-on-cream node: his own numbered chip is a cyan
+   square with a dark ink numeral, and cyan can carry a numeral at 7.7:1 where
+   the skin's pale gold could not. The rim is --gold-deep rather than a pale
+   cyan, because the ring is what separates a 2.4:1 cyan disc from the white
+   card behind it. */
+.tl-node.is-on .tl-node-inner {
+  background: linear-gradient(160deg, #22d3ee 0%, #06b6d4 62%, #0891b2 100%);
+  border-color: rgba(8, 145, 178, 0.9);
+  color: var(--on-accent);
+  box-shadow:
+    0 0 0 5px rgba(6, 182, 212, 0.18),
+    0 0 18px 2px rgba(6, 182, 212, 0.4),
+    0 8px 18px -8px rgba(14, 39, 51, 0.4);
+  animation: lego-snap 0.62s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+@keyframes tl-ping {
+  0% { transform: scale(0.96); opacity: 0.5; }
+  70%, 100% { transform: scale(1.32); opacity: 0; }
+}
+.tl-node-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+.tl-node.is-on .tl-node-ring {
+  background: rgba(6, 182, 212, 0.45);
+  animation: tl-ping 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  z-index: -1;
+}
+
+@media (min-width: 640px) {
+  .tl-rail { left: 50%; }
+  /* Even rows sit in the left column so their node hangs off the RIGHT edge;
+     odd rows are the mirror. Both land dead centre on the rail. */
+  .tl-node-right { left: auto; right: 0; transform: translateX(50%); }
+  .tl-node-left { left: 0; right: auto; transform: translateX(-50%); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE CLOSING RECAP — the page's premium peak
+ *  A layered frame, a gold medallion seal, and a thin gold flourish broken by
+ *  a centred ornament, like the title page of a bound book. The
+ *  pseudo-elements are why this lives in CSS rather than inline styles.
+ * ═══════════════════════════════════════════════════════════════════════ */
+.kz-recap {
+  position: relative;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 72px 56px 56px;
+  border-radius: 6px;
+  isolation: isolate;
+  /* A white card catching a cyan wash from its top edge, on the washed canvas
+     the Recap section supplies. The four-ring frame is unchanged in
+     construction — hairline, a gap in the page ground, the accent line, then
+     the bloom. The gap ring is --canvas because this card sits on --canvas;
+     if the section ever moves onto the band, that ring moves with it. */
+  background:
+    radial-gradient(ellipse 92% 58% at 50% 0%, rgba(6, 182, 212, 0.16), transparent 66%),
+    var(--surface);
+  box-shadow:
+    0 0 0 1px rgba(14, 39, 51, 0.1),
+    0 0 0 7px var(--canvas),
+    0 0 0 8px rgba(6, 182, 212, 0.6),
+    0 0 70px -12px rgba(6, 182, 212, 0.34),
+    0 54px 96px -44px rgba(14, 39, 51, 0.28);
+}
+.kz-recap > * { position: relative; z-index: 2; }
+.kz-recap::before {
+  content: '';
+  position: absolute;
+  top: 26px;
+  left: 17%;
+  right: 17%;
+  height: 1px;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(8, 145, 178, 0.75) 30%,
+    rgba(8, 145, 178, 0.75) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+.kz-recap::after {
+  content: '✦';
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--gold-deep);
+  /* Punches the gap in the rule above, so it has to match the card it sits on,
+     which is now --surface and no longer the page ground. */
+  background: var(--surface);
+  padding: 0 8px;
+  pointer-events: none;
+}
+
+.kz-seal {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* Same metal, re-alloyed: a polished cyan disc instead of a gold one. The
+     5px ring is the card it sits ON, so it follows --surface, not the page. */
+  background:
+    radial-gradient(circle at 30% 28%, rgba(236, 254, 255, 0.75), transparent 56%),
+    linear-gradient(180deg, #a5f3fc 0%, #22d3ee 55%, #0e7490 100%);
+  box-shadow:
+    0 0 0 1.5px rgba(8, 145, 178, 0.55),
+    0 0 0 5px var(--surface),
+    0 0 0 6.5px rgba(6, 182, 212, 0.7),
+    0 14px 30px -8px rgba(8, 145, 178, 0.3),
+    inset 0 1px 0 rgba(236, 254, 255, 0.8);
+}
+/* Dark glyph on a bright disc, 10.4:1 on the mid stop. */
+.kz-seal svg { width: 31px; height: 31px; color: var(--on-accent); }
+
+/* The struck anchor price draws its own strike-through on reveal, then the
+   real number pops in lit. The value collapse is dramatised at the exact
+   moment of decision (C3). */
+@keyframes kz-strike {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.kz-strike { position: relative; display: inline-block; }
+.kz-strike::after {
+  content: '';
+  position: absolute;
+  left: -3%;
+  right: -3%;
+  top: 52%;
+  height: 2px;
+  background: var(--ink-soft);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.bw-in .kz-strike::after,
+.lego-in .kz-strike::after,
+.lego-done .kz-strike::after {
+  animation: kz-strike 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+}
+
+@keyframes kz-price-pop {
+  0% { opacity: 0; transform: translateY(8px) scale(0.92); }
+  62% { opacity: 1; transform: translateY(0) scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+.bw-in .kz-price,
+.lego-in .kz-price,
+.lego-done .kz-price {
+  animation: kz-price-pop 0.6s cubic-bezier(0.34, 1.5, 0.64, 1) 0.75s both;
+}
+
+/* THE LIT TOKEN — his highlight: a cyan-to-emerald gradient clipped to the
+   glyphs, with a faint bloom behind it. It carries the lit price and the one
+   highlighted phrase in a headline, which is why the gradient runs
+   left-to-right rather than down: a highlighted phrase is a horizontal object.
+   On a wrapped phrase each line fragment gets its own pass of the gradient;
+   both stops are close enough in value that it still reads as one colour.
+
+   TWO of them, because this page has two grounds and one gradient cannot serve
+   both. `.kz-lit` is the LIGHT-ground version and it runs on the DEEP steps
+   (--gold-deep → --gold-ink → --emerald-ink, 3.6:1 to 5.4:1): every element
+   that carries it is a price at 46px or larger, so it clears the large-text
+   bar with room. `.kz-lit-dark` is his bright original and belongs only inside
+   the hero stage or a contained dark object. Putting the bright one on light
+   is a 2.0:1 headline, which is the single easiest mistake to make here. */
+.kz-lit {
+  background: linear-gradient(100deg, #0891b2 0%, #0e7490 48%, #047857 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(6, 182, 212, 0.34));
+}
+
+.kz-lit-dark {
+  background: linear-gradient(100deg, #22d3ee 0%, #06b6d4 48%, #10b981 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 12px rgba(6, 182, 212, 0.45));
+}
+
+/* ── the ruled ledger (recap rows + mechanism rows) ───────────────────────
+   A hairline-divided list, not a stack of cards. A ruled ledger reads as
+   audited and accountable, which is what sells competence (C9). */
+.kz-ledger > li + li { border-top: 1px solid var(--line); }
+
+/* ── the review wall ──────────────────────────────────────────────────────
+   Column-masonry, so screenshots of different heights tile without gaps. */
+.kz-masonry { column-gap: 16px; }
+.kz-masonry > * {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+@media (min-width: 640px) { .kz-masonry { column-count: 2; } }
+@media (min-width: 1024px) { .kz-masonry { column-count: 3; } }
+
+/* ── the docked CTA ─────────────────────────────────────────────────────── */
+@keyframes kz-dock {
+  0% { opacity: 0; transform: translate3d(0, 100%, 0); }
+  62% { opacity: 1; transform: translate3d(0, -6px, 0); }
+  80% { transform: translate3d(0, 2px, 0); }
+  100% { opacity: 1; transform: none; }
+}
+.kz-dock {
+  animation: kz-dock 0.78s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.35s;
+}
+
+@media (max-width: 720px) {
+  .kz-recap { padding: 58px 22px 40px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ *  REDUCED MOTION — nothing here is load-bearing, so all of it goes, and no
+ *  reveal is ever left hidden.
+ * ═══════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .bw-js .bw-reveal-up,
+  .bw-js .bw-reveal-up-sm,
+  .bw-js .bw-reveal-left,
+  .bw-js .bw-reveal-right,
+  .bw-js .bw-reveal-scale,
+  .bw-js .bw-reveal-fade {
+    opacity: 1;
+    transform: none;
+  }
+  .bw-js [data-lego],
+  .bw-js [data-lego-loop],
+  .bw-js [data-lego-stud] {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  /* The strike and the price must still END in their finished state, or the
+     closing offer renders with no strike-through and an invisible price. */
+  .bw-in .kz-strike::after,
+  .lego-in .kz-strike::after,
+  .lego-done .kz-strike::after {
+    animation: none !important;
+    transform: scaleX(1) !important;
+  }
+  .bw-in .kz-price,
+  .lego-in .kz-price,
+  .lego-done .kz-price {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .cta-shimmer::after,
+  .tl-node.is-on .tl-node-ring {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .cta-breath,
+  .tl-node.is-on .tl-node-inner { animation: none !important; }
+  .kz-dock { animation: none !important; opacity: 1; transform: none; }
+  .tl-fill { transition: none !important; }
+}
+
+/* ══ Announcement marquee ═════════════════════════════════════════════════
+   The bar scrolls continuously rather than wrapping onto two lines at narrow
+   widths, which is what it used to do.
+
+   The track holds the segment list TWICE and translates by exactly -50%. That
+   is what makes the loop seamless: at the moment it resets, the second copy is
+   sitting precisely where the first began, so there is no jump and no gap. Any
+   other distance leaves a visible seam.
+
+   Duration scales with content, not with viewport, so the reading speed stays
+   constant on a phone and on a desktop. Paused on hover so a reader can finish
+   a line, and stopped entirely under prefers-reduced-motion, where an endlessly
+   moving strip is exactly what the setting exists to prevent. */
+/* ── the testimonial rail ────────────────────────────────────────────────
+   Same machinery as the announcement marquee below, at a slower pace and with
+   a wider feathered edge, because these are portrait cards rather than a line
+   of text.
+
+   The mask sits on the RAIL, never on the track: masking the moving element
+   would fade the cards against their own motion instead of against the page.
+
+   It pauses on hover and on focus-within, so a keyboard user can reach a card
+   without it sliding away, and data-playing pauses it outright while a clip is
+   open, because nothing is worse than a video walking off screen while you are
+   watching it. */
+.kz-rail {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 4rem,
+    #000 calc(100% - 4rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 4rem,
+    #000 calc(100% - 4rem),
+    transparent 100%
+  );
+}
+
+.kz-rail-track {
+  display: flex;
+  width: max-content;
+  gap: 20px;
+  padding-right: 20px;
+  animation: kz-rail-scroll 92s linear infinite;
+  will-change: transform;
+}
+
+/* The second rail runs the other way, so the two read as a pair rather than as
+   the same effect twice. */
+.kz-rail-track--reverse {
+  animation-direction: reverse;
+}
+
+.kz-rail:hover .kz-rail-track,
+.kz-rail:focus-within .kz-rail-track,
+.kz-rail[data-playing='true'] .kz-rail-track {
+  animation-play-state: paused;
+}
+
+@keyframes kz-rail-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.kz-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+}
+
+.kz-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: kz-marquee-scroll 38s linear infinite;
+  will-change: transform;
+}
+
+.kz-marquee:hover .kz-marquee-track,
+.kz-marquee:focus-within .kz-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes kz-marquee-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-rail-track { animation: none !important; }
+  .kz-marquee-track {
+    animation: none;
+    /* one copy only, centred, so the duplicate is never visible when static */
+    width: 100%;
+    justify-content: center;
+  }
+  .kz-marquee-track > [data-marquee-copy='2'] {
+    display: none;
+  }
+  .kz-marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ══ Horizontal overflow guard ════════════════════════════════════════════
+   The page has a full-bleed marquee and a stat row pulled up on a negative
+   margin, both of which can push a scrollbar on a narrow phone if anything
+   inside them grows. `clip` rather than `hidden`: hidden on the root element
+   creates a scroll container and silently breaks position: sticky, which this
+   page uses for the docked CTA. */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* ══ Legal pages ══════════════════════════════════════════════════════════
+   One set of rules for all three, so privacy, terms and refund cannot drift
+   apart typographically. Values follow the checkout's scale. */
+.legal-content h2 {
+  margin-top: 2.5rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+@media (min-width: 640px) {
+  .legal-content h2 { font-size: 24px; }
+}
+.legal-content h3 {
+  margin-top: 1.5rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.legal-content p { margin-top: 0.75rem; }
+.legal-content ul {
+  margin-top: 0.75rem;
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.legal-content ul > li { margin-top: 0.375rem; line-height: 1.7; }
+.legal-content ul > li::marker { color: var(--gold-deep); }
+.legal-content a {
+  font-weight: 500;
+  color: var(--gold-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.legal-content strong { font-weight: 600; color: var(--ink); }
