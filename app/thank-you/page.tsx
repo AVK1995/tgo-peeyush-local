@@ -408,8 +408,9 @@ function ThankYou() {
                 with the scaffold. Dr. Peeyush has never offered a Day One
                 guarantee: his own copy promises a "100% Money-Back Guarantee",
                 four times, with no terms stated anywhere. The link now names
-                his six words and nothing else, and the terms behind it are
-                [TODO] on the refund page until he supplies them. */}
+                his six words and nothing else. The refund page behind the link
+                now states the promise and the process and deliberately states
+                no window or exclusions, because none were ever supplied. */}
             <p className="mt-1.5 text-[12.5px]" style={{ color: C.inkSoft }}>
               (The 100% Money-Back Guarantee you joined with is set out in our{' '}
               <Link href="/refund-policy" className="underline" style={{ color: C.goldInk }}>

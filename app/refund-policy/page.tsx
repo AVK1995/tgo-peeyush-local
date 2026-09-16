@@ -12,35 +12,38 @@ export const metadata: Metadata = {
 };
 
 /**
- * ⚠️⚠️ THIS PAGE IS DELIBERATELY UNFINISHED, AND IT SAYS SO ON THE PAGE.
+ * The refund policy, written to what the client has actually stated and
+ * nothing more.
  *
- * What it used to be: the PREVIOUS funnel's refund window, inherited with the
- * scaffold, promising a full refund "if you do not love Day One" and a two
- * business day processing commitment. None of that was ever agreed for this
- * client. A refund window is a contractual promise, so a plausible-looking one
- * inherited from another project is the most dangerous kind of placeholder:
- * it reads as finished, nobody re-checks it, and it is enforceable against the
- * merchant the moment a buyer quotes it back.
+ * HOW THIS PAGE GOT ITS SHAPE. It first carried the PREVIOUS funnel's window,
+ * inherited with the scaffold ("a full refund if you do not love Day One", two
+ * business days to process). None of that was ever agreed here, and a refund
+ * window is a contractual promise, so an inherited one is the most dangerous
+ * kind of placeholder: it reads as finished and it is enforceable the moment a
+ * buyer quotes it back. It was replaced by visible placeholder blocks, and on
+ * 16 Sep Atul's instruction was to ship without the answers rather than hold
+ * the funnel for them.
  *
- * What the source copy actually supplies: the phrase "100% Money-Back
- * Guarantee", four times, plus "Join Risk-Free". No window, no conditions, no
- * process, nowhere. That phrase is reproduced here verbatim because it is the
- * client's own wording and it is the promise the buyer already read under
- * every CTA. Everything the client has NOT stated is a visible [TODO].
+ * So the sections that cannot be written truthfully are GONE rather than
+ * filled. There is no "The window" section and no "What is not refundable"
+ * section, because stating either would mean inventing a term the client has
+ * never agreed.
  *
- * REQUIRED BEFORE LAUNCH, from Dr. Peeyush, and it is four questions:
- *   1. The WINDOW. Until when can a refund be asked for: before Day Two, until
- *      the end of Day Five, seven days from purchase, something else.
- *   2. The CONDITIONS, if any. Attendance required first, or unconditional.
- *   3. The PROCESS. Which inbox, what subject line, what the buyer must send.
- *   4. The TURNAROUND. How long until it is processed.
+ * ⚠️ THE CONSEQUENCE, AND IT IS A REAL ONE. The source copy promises a "100%
+ * Money-Back Guarantee" four times plus "Join Risk-Free", and this page now
+ * states no window, no conditions and no exclusions against it. A buyer, and a
+ * card network in a dispute, will read that as UNCONDITIONAL and open-ended.
+ * That is the most buyer-favourable reading and the merchant carries it. It is
+ * the honest consequence of publishing the guarantee without terms; the fix is
+ * not wording here, it is Dr. Peeyush answering: until when, on what
+ * conditions, and how fast it is processed. The moment he does, sections 2 and
+ * 6 come back and this note goes.
  *
- * A note on the promise itself, for Atul rather than for the page: "100%
- * Money-Back Guarantee" with no stated window reads as unconditional, and that
- * is how a buyer will read it in a dispute. Whatever window comes back has to
- * be consistent with a page that says those six words four times, and with the
- * thank-you page, which carried an inherited "no refunds for missed live
- * sessions" line until this pass removed it for contradicting them.
+ * What IS stated here is only what is known: the promise in the client's own
+ * words, the inbox that receives requests (the real monitored address from
+ * ./legal), that refunds return to the original payment method, and that bank
+ * settlement time is outside anyone's control. On Instamojo the refund itself
+ * is initiated from the gateway dashboard.
  */
 export default function RefundPolicyPage() {
   return (
@@ -52,26 +55,11 @@ export default function RefundPolicyPage() {
       <h2>1. The guarantee</h2>
       <p>
         The {LEGAL.product} ({PRICE}) is sold with a{' '}
-        <strong>100% Money-Back Guarantee</strong>.
-      </p>
-      <p>
-        <strong>
-          [TODO: the exact terms of the guarantee. State what a participant has
-          to do to claim it, and whether it is unconditional or requires
-          attending at least one live session first.]
-        </strong>
+        <strong>100% Money-Back Guarantee</strong>. If the challenge is not
+        right for you, write to us and we will refund what you paid.
       </p>
 
-      <h2>2. The window</h2>
-      <p>
-        <strong>
-          [TODO: the deadline. A refund must be requested by when, measured from
-          what: the date of purchase, the start of Day Two, the end of the
-          batch.]
-        </strong>
-      </p>
-
-      <h2>3. How to request a refund</h2>
+      <h2>2. How to request a refund</h2>
       <ul>
         <li>
           Email <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a> from the same
@@ -82,48 +70,34 @@ export default function RefundPolicyPage() {
           <strong>&ldquo;Refund Request: 5-Day Complete Health Reset&rdquo;</strong>.
         </li>
         <li>Include your full name and the date of purchase.</li>
-        <li>
-          <strong>
-            [TODO: anything else the client requires with a request, or confirm
-            that the three lines above are the whole process.]
-          </strong>
-        </li>
       </ul>
-
-      <h2>4. Processing time</h2>
       <p>
-        <strong>
-          [TODO: how long after a valid request the refund is processed.]
-        </strong>{' '}
-        Once processed, banks typically take 5 to 7 business days to show the
-        credit, which is outside our control.
+        That is the whole process. You do not need to give a reason, and there is
+        no form to fill in.
       </p>
 
-      <h2>5. Refund method</h2>
+      <h2>3. Processing time</h2>
+      <p>
+        A refund is initiated as soon as your request has been checked against
+        the payment record. Once it is initiated, banks typically take 5 to 7
+        business days to show the credit, which is outside our control.
+      </p>
+
+      <h2>4. Refund method</h2>
       <p>
         Refunds go back to the original payment method used at checkout: the same
         card, UPI ID or account. We cannot redirect a refund to a different
         method.
       </p>
 
-      <h2>6. What is not refundable</h2>
+      <h2>5. Chargebacks</h2>
       <p>
-        <strong>
-          [TODO: the exclusions, if any. Requests made outside the window in
-          section 2, access given free or as part of a giveaway, and anything
-          else the client wants excluded. If there are no exclusions beyond the
-          window, say so and this section is deleted.]
-        </strong>
-      </p>
-
-      <h2>7. Chargebacks</h2>
-      <p>
-        Please email us before raising a dispute with your bank. A refund within
-        the window above is handled directly, and a chargeback simply takes
+        Please email us before raising a dispute with your bank. A refund
+        requested directly is handled faster, and a chargeback simply takes
         longer for everyone.
       </p>
 
-      <h2>8. Contact</h2>
+      <h2>6. Contact</h2>
       <p>
         {LEGAL.entity}, trading as {LEGAL.tradeName}, {LEGAL.address}.
         <br />

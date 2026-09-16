@@ -57,10 +57,15 @@ two options → recap with strike-and-pop price → colophon footer.
   pass). Checkout, thank-you, the three legal pages, the footer, Meta CAPI,
   GA4, Clarity, Pabbly, `legal.ts` and `.env.example` are this client's, and
   the tracking is verified against the build bible's event map.
-  `app/refund-policy/page.tsx` no longer publishes the previous funnel's refund
-  window: its four open terms are visible `[TODO]` blocks. The business facts
-  are in; **two** `[TODO]`s stand in `app/_landing/legal.ts` (the legal
-  `structure` and the PIN on the address) and the PIN renders.
+  **No placeholders render anywhere any more.** On 16 Sep Atul's call was to
+  ship without the facts nobody has rather than hold the funnel, so instead of
+  filling them: `legal.ts` carries an empty `structure` (the terms page omits
+  the phrase rather than guessing) and an address without a PIN (incomplete,
+  not false), and `app/refund-policy/page.tsx` dropped its "The window" and
+  "What is not refundable" sections rather than invent terms. Read as it now
+  stands, the guarantee is unconditional and open-ended, which is the reading a
+  card network takes in a dispute. Giving it a window is a decision from
+  Dr. Peeyush, not an edit.
 - **Payments are on INSTAMOJO, not Razorpay**, and Razorpay is gone: both
   routes, the config block, the SDK loader, the client handler and
   `lib/order-notes.ts` were deleted and nothing imports them. New:

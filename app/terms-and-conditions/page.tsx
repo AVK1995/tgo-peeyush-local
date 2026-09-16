@@ -26,12 +26,11 @@ export default function TermsPage() {
           counterparty is, who is liable, and which name has to match the PAN
           and the payment gateway's merchant record.
 
-          So the structure is NAMED ONLY WHEN IT IS KNOWN. While LEGAL.structure
-          is an unfilled [TODO] the sentence simply runs without it, which is
-          accurate and asserts nothing untrue, rather than rendering a bracketed
-          placeholder into a contractual sentence or, worse, guessing. It is
-          still a launch blocker; it is just not a false statement in the
-          meantime. */}
+          So the structure is NAMED ONLY WHEN IT IS KNOWN. LEGAL.structure is
+          empty on Atul's instruction of 16 Sep (the client has not stated it
+          and the funnel is not waiting), so this sentence runs without the
+          phrase, which is accurate and asserts nothing untrue. Fill the field
+          and the sentence reshapes itself around it. */}
       <h2>1. Who we are</h2>
       <p>
         The programme is provided by {LEGAL.entity}

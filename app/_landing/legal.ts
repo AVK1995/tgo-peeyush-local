@@ -10,11 +10,14 @@
  * carried in with the scaffold, which pointed this funnel's refund and data
  * requests at a real third party's inbox.
  *
- * STILL OPEN, both marked [TODO] inline so they ship loudly rather than
- * quietly:
- *   - `structure`: proprietorship, partnership or company. It decides who the
- *     counterparty is in the terms.
- *   - the PIN code on `address`.
+ * TWO FACTS ARE SHIPPING ABSENT, on Atul's instruction of 16 Sep: the legal
+ * `structure` and the PIN on the address. Neither is a placeholder any more,
+ * because a placeholder rendered into a contractual sentence is worse than the
+ * sentence not making the claim at all. So:
+ *   - `structure` is empty, and the terms page omits the phrase rather than
+ *     guessing it (see `LEGAL_STRUCTURE_KNOWN` below)
+ *   - the address renders without a PIN, which is incomplete but true
+ * Both are still worth filling the day they surface. Neither blocks a launch.
  *
  * These strings appear in the footer of EVERY page (landing, checkout,
  * thank-you) and inside sentences on all three policy pages.
@@ -39,20 +42,21 @@ export const LEGAL = {
      is not cosmetic: it decides who the counterparty is, who carries the
      liability, and which name has to match the PAN and the payment-gateway
      merchant record.
-     ⚠️ STILL OPEN. The name supplied reads as a business name rather than an
-     individual, so it is probably NOT a sole proprietorship, but that is an
-     inference and this field is a legal assertion. Fill with the phrase as it
-     should READ in a sentence, lower case: 'sole proprietor', 'a partnership
-     firm', 'a private limited company'. Until then the terms page says the
-     entity operates the programme without naming a structure at all, which is
-     accurate and says nothing untrue. */
-  structure: '[TODO: legal structure]',
-  /* Supplied by Atul, 15 Sep 2026.
-     ⚠️ THE PIN IS MISSING. He was asked for the address with PIN and gave
-     "B block, harinagar delhi". A PIN is not a detail to guess: it goes on the
-     merchant record and on the refund address. Add it here the moment it
-     arrives, in this one place. */
-  address: 'B Block, Hari Nagar, New Delhi, Delhi [TODO: PIN]',
+     DELIBERATELY EMPTY, not unfinished. The client has not stated the legal
+     form and Atul's call on 16 Sep was to ship without it rather than wait.
+     Empty is the one safe value: the terms page reads `LEGAL_STRUCTURE_KNOWN`
+     below and runs its opening sentence WITHOUT naming a structure, which
+     asserts nothing untrue. Guessing 'sole proprietor' from the name would be
+     a false statement about who the buyer's counterparty is.
+     To fill it later, use the phrase as it should READ in a sentence, lower
+     case: 'sole proprietor', 'a partnership firm', 'a private limited
+     company'. The sentence reshapes itself around it. */
+  structure: '',
+  /* Supplied by Atul, 15 Sep 2026, and shipping without a PIN on his
+     instruction: he was asked for one and the address came without it. An
+     incomplete address is not a false one, and a guessed PIN would be. Add it
+     here when it surfaces, in this one place. */
+  address: 'B Block, Hari Nagar, New Delhi, Delhi',
   /** A monitored number, in the form it should be read as. */
   phone: '+91 99104 29440',
   /** The same number, digits and + only, for the tel: href. */
@@ -85,7 +89,7 @@ export const LEGAL = {
  * It stays a launch blocker either way. This only decides how the page reads
  * until it is answered.
  */
-export const LEGAL_STRUCTURE_KNOWN = !LEGAL.structure.includes('[TODO');
+export const LEGAL_STRUCTURE_KNOWN = LEGAL.structure.trim().length > 0;
 
 /**
  * THE DISCLAIMER, verbatim from COPY-SOURCE.md.

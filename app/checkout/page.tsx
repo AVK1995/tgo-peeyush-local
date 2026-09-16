@@ -472,7 +472,14 @@ export default function CheckoutPage() {
               >
                 <span className="inline-flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
                   <Lock weight="fill" className="h-3 w-3 shrink-0" style={{ color: C.goldInk }} />
-                  Instamojo Secured
+                  {/* ⚠️ DELIBERATE, NOT A LEFTOVER: this label says Razorpay
+                      while the gateway taking the money is Instamojo. Atul
+                      asked for it on 16 Sep after the swap. Do not "fix" it to
+                      match the gateway without asking him first, and revisit it
+                      if this funnel stays on Instamojo, because the name under
+                      a padlock is what the buyer reads as who is holding their
+                      card details. */}
+                  Razorpay Secured
                 </span>
                 <span aria-hidden="true">·</span>
                 <span className="whitespace-nowrap">SSL Encrypted</span>
