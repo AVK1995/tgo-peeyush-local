@@ -12,27 +12,28 @@
  * imports the landing page's tokens instead of redeclaring them, so the two
  * pages cannot drift apart.
  *
- * PAYMENT IS INSTAMOJO, AND IT IS A REDIRECT, NOT A SHEET.
+ * PAYMENT IS RAZORPAY, AND IT IS A SHEET OVER THIS PAGE, NOT A REDIRECT.
  *
- * That is the one structural thing to hold on to when reading this file.
- * There is no SDK to load, no modal to open over this page, and no in-page
- * success callback to write. The pay button posts the form to
- * /api/instamojo/create-payment, gets back a payment-page URL, and navigates
- * the whole tab to it. The buyer comes back, if they come back at all, on
- * /api/instamojo/return, which confirms the payment server-side and forwards
- * them to /thank-you.
+ * That is the one structural thing to hold on to when reading this file, and
+ * it is what changed back in this pass. The pay button loads Razorpay's
+ * checkout SDK on demand, posts the form to /api/razorpay/create-order, and
+ * opens the payment sheet on top of this page. The buyer never leaves the
+ * site, so there is no return route to confirm anything: the sheet's own
+ * handler moves them to /thank-you, and the webhook is what proves the sale.
  *
  * Two consequences live in the code below:
- *   - InitiateCheckout fires BEFORE the navigation, which is safe because
- *     lib/track posts it with keepalive: true. It is pay intent, and it is the
- *     last thing this page can report.
- *   - the button is left in its busy state on the way out, and reset on
- *     `pageshow`, because a buyer who presses back arrives on a page restored
- *     from the back-forward cache with the state it had when they left, which
- *     is a disabled pay button and no way to try again.
+ *   - InitiateCheckout fires immediately BEFORE the sheet opens, never on
+ *     arrival. That is the moment intent is real: the details are valid and
+ *     the buyer is committing. Arrival is AddToCart, in the effect above it.
+ *   - the sheet's `ondismiss` resets the busy state, because a buyer who
+ *     closes the sheet is still on this page and must be able to try again.
+ *
+ * PURCHASE IS NOT FIRED HERE. The success handler only navigates. The
+ * Razorpay webhook owns Purchase, so a UPI payer who finishes inside their
+ * bank app and never returns to this tab is still counted.
  *
  * The button degrades honestly when the gateway is unconfigured:
- * create-payment reports `not-configured` and the form says "Payments are not
+ * create-order reports `not-configured` and the form says "Payments are not
  * switched on yet. Nothing has been charged." rather than failing silently.
  */
 
@@ -60,6 +61,35 @@ import {
 
 import { C } from '../_landing/shared';
 import { RECAP, VALUE_TOTAL, inr } from './included';
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+const RZP_SDK = 'https://checkout.razorpay.com/v1/checkout.js';
+
+/* Loaded on demand rather than in the layout: it is ~100KB that only matters
+   once someone actually presses pay. */
+function loadRazorpay(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${RZP_SDK}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const el = document.createElement('script');
+    el.src = RZP_SDK;
+    el.async = true;
+    el.onload = () => resolve(true);
+    el.onerror = () => resolve(false);
+    document.body.appendChild(el);
+  });
+}
 
 /* Dial codes carry the ISO-2 alongside them because Meta's CAPI wants the
    COUNTRY as a hashed ISO 3166-1 alpha-2 code, not a dial code. India first,
@@ -132,31 +162,11 @@ export default function CheckoutPage() {
     trackAddToCart();
   }, []);
 
-  /* Coming BACK from the gateway.
-     Two arrivals are handled here and neither existed on a modal gateway.
-
-     A buyer who abandons the Instamojo page and presses back lands on this
-     page restored from the back-forward cache, with the exact state it had
-     when they left: `busy` true and the pay button disabled. The `persisted`
-     flag on `pageshow` is the only reliable signal that this happened, since
-     no effect re-runs on a bfcache restore.
-
-     And /api/instamojo/return sends a buyer here with ?pay=incomplete when the
-     gateway did not confirm the payment. Read from window.location rather than
-     useSearchParams on purpose: this is a client page with no Suspense
-     boundary around it, and useSearchParams would demand one. */
-  useEffect(() => {
-    const restore = (e: PageTransitionEvent) => {
-      if (e.persisted) setBusy(false);
-    };
-    window.addEventListener('pageshow', restore);
-    if (new URLSearchParams(window.location.search).get('pay') === 'incomplete') {
-      setFailed(
-        'That payment did not go through, so nothing has been charged. You can try again below.',
-      );
-    }
-    return () => window.removeEventListener('pageshow', restore);
-  }, []);
+  /* The two effects that a REDIRECT gateway needed are gone with it: there is
+     no ?pay=incomplete arrival to read, because no route sends the buyer back
+     here, and no back-forward-cache restore to undo, because the buyer never
+     leaves this page. The sheet's own `ondismiss` is what resets the button
+     when someone closes it without paying. */
 
   const v = useMemo(() => {
     const digits = f.phone.replace(/\D/g, '');
@@ -176,7 +186,7 @@ export default function CheckoutPage() {
     v.firstName && v.lastName && v.email && v.city && v.phone && v.occupation;
 
   const dial = COUNTRIES.find((c) => c.iso === f.country)?.dial ?? '+91';
-  /* E.164 without the plus, which is what both Meta and Instamojo expect. */
+  /* E.164 without the plus, which is what both Meta and Razorpay expect. */
   const e164 = `${dial}${f.phone}`.replace(/\D/g, '');
 
   const startPayment = async (e: React.FormEvent) => {
@@ -186,13 +196,12 @@ export default function CheckoutPage() {
     if (!valid || busy) return;
     setBusy(true);
 
-    /* Meta InitiateCheckout + GA4 add_payment_info. Fired before the buyer is
-       handed to the gateway rather than after payment, because this is the
-       moment intent is real: details are valid and the buyer is committing.
+    /* Meta InitiateCheckout + GA4 add_payment_info. Fired before the sheet
+       opens rather than after payment, because this is the moment intent is
+       real: details are valid and the buyer is committing.
 
-       It is also the LAST thing this page will ever report, because the next
-       navigation leaves the site entirely. lib/track posts it with
-       keepalive: true, which is what makes that safe. */
+       lib/track posts it with keepalive: true, so it survives the navigation
+       the success handler causes a moment later. */
     trackInitiateCheckout({
       email: f.email.trim(),
       phone: e164,
@@ -204,7 +213,10 @@ export default function CheckoutPage() {
     });
 
     try {
-      const res = await fetch('/api/instamojo/create-payment', {
+      const sdk = await loadRazorpay();
+      if (!sdk) throw new Error('sdk');
+
+      const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -218,26 +230,61 @@ export default function CheckoutPage() {
           ...collectSignals(),
         }),
       });
-      const created = await res.json();
+      const order = await res.json();
 
-      if (!res.ok || !created?.ok || !created?.payUrl) {
+      if (!res.ok || !order?.ok) {
         setBusy(false);
         setFailed(
-          created?.reason === 'not-configured'
+          order?.reason === 'not-configured'
             ? 'Payments are not switched on yet. Nothing has been charged.'
             : 'We could not start the payment. Please try again.',
         );
         return;
       }
 
-      /* The redirect. Everything this page can report has been reported by
-         now, and Purchase is NOT one of those things: the webhook owns it, so
-         a UPI payer who finishes inside their bank app and never comes back is
-         still counted.
+      const rzp = new window.Razorpay!({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        /* The name the buyer reads at the top of the payment sheet. It should
+           MATCH the business name on the Razorpay account: a different name
+           over a card form is the single most common reason a buyer abandons
+           at the sheet. */
+        name: 'Dr. Peeyush Prabhat',
+        /* ⚠️ NO `image` KEY, ON PURPOSE. The reference build passes a square
+           lockup here so the brand does not vanish at the moment card details
+           are typed, but this project has no brand file: public/brand/ does
+           not exist and nothing on the site carries a logo or a wordmark.
+           Pointing at a path that is not there renders a blank broken tile
+           inside Razorpay's iframe, which is worse than no image at all.
 
-         `assign`, not `replace`: back from the payment page should land the
-         buyer on their filled-in checkout, not on the landing page. */
-      window.location.assign(created.payUrl as string);
+           To add it: drop a square JPG or PNG (256x256 or larger) at
+           public/brand/peeyush-square.jpg and restore the line below, ABSOLUTE
+           and not relative, because Razorpay renders the sheet in an iframe
+           served from its own domain where `/brand/...` would resolve against
+           checkout.razorpay.com and 404:
+
+             image: `${window.location.origin}/brand/peeyush-square.jpg`,
+
+           Until then the sheet falls back to the logo uploaded in the Razorpay
+           dashboard, which is where the client should put one anyway. */
+        description: '5-Day Complete Health Reset Challenge',
+        prefill: {
+          name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(),
+          email: f.email.trim(),
+          contact: e164,
+        },
+        theme: { color: C.navyDeep },
+        modal: { ondismiss: () => setBusy(false) },
+        /* Purchase is NOT fired here. The webhook owns it, so a UPI payer who
+           finishes in their bank app and never returns is still counted. This
+           handler only moves the buyer on. */
+        handler: (r: { razorpay_payment_id: string }) => {
+          window.location.href = `/thank-you?p=${encodeURIComponent(r.razorpay_payment_id)}`;
+        },
+      });
+      rzp.open();
     } catch {
       setBusy(false);
       setFailed('We could not start the payment. Please try again.');
@@ -344,7 +391,7 @@ export default function CheckoutPage() {
                 />
 
                 {/* The dial code is its own control rather than something the
-                    buyer types, so the number that reaches Meta and Instamojo is
+                    buyer types, so the number that reaches Meta and Razorpay is
                     always a clean E.164 and the country arrives as an ISO-2 we
                     can hash. */}
                 <label className="block">
@@ -472,13 +519,11 @@ export default function CheckoutPage() {
               >
                 <span className="inline-flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
                   <Lock weight="fill" className="h-3 w-3 shrink-0" style={{ color: C.goldInk }} />
-                  {/* ⚠️ DELIBERATE, NOT A LEFTOVER: this label says Razorpay
-                      while the gateway taking the money is Instamojo. Atul
-                      asked for it on 16 Sep after the swap. Do not "fix" it to
-                      match the gateway without asking him first, and revisit it
-                      if this funnel stays on Instamojo, because the name under
-                      a padlock is what the buyer reads as who is holding their
-                      card details. */}
+                  {/* The gateway named under the padlock is the gateway taking
+                      the money again, which is what the buyer reads as who is
+                      holding their card details. This line was already saying
+                      Razorpay through the Instamojo pass, on Atul's call; it is
+                      now simply true. */}
                   Razorpay Secured
                 </span>
                 <span aria-hidden="true">·</span>
@@ -706,7 +751,7 @@ function OrderSummary() {
             UPI · Cards · NetBanking
           </p>
           <p className="mt-0.5" style={{ color: C.inkSoft }}>
-            Pay securely via Instamojo.
+            Pay securely via Razorpay.
           </p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # SESSION STATE · tgo-peeyush
 
-Last updated: 15 Sep 2026 (LAUNCH payment pass, Instamojo)
+Last updated: 17 Sep 2026 (LAUNCH pass: Razorpay restored, Instamojo removed)
 
 ## What this is
 Landing funnel for **Dr. Peeyush Prabhat · 5-Day Complete Health Reset Challenge**.
@@ -66,26 +66,42 @@ two options → recap with strike-and-pop price → colophon footer.
   stands, the guarantee is unconditional and open-ended, which is the reading a
   card network takes in a dispute. Giving it a window is a decision from
   Dr. Peeyush, not an edit.
-- **Payments are on INSTAMOJO, not Razorpay**, and Razorpay is gone: both
-  routes, the config block, the SDK loader, the client handler and
-  `lib/order-notes.ts` were deleted and nothing imports them. New:
-  `lib/instamojo.ts`, `lib/payment-context.ts`, and
-  `app/api/instamojo/{create-payment,webhook,return}`. It is a REDIRECT
-  gateway, so the checkout navigates the tab to Instamojo's `longurl` and the
-  buyer returns through `/api/instamojo/return`, which confirms the payment
-  with the gateway before forwarding to `/thank-you?p=`. Purchase, the
-  server-side GA4 purchase and the Pabbly hand-off all come from the webhook
-  only, because a UPI buyer does not come back.
-- Instamojo has **no notes field**, so the buyer context (fbp, fbc, IP, user
-  agent, GA4 client id, city, occupation, campaign) is sealed with AES-256-GCM,
-  keyed from the account's private salt, and carried on the webhook URL, which
-  Instamojo takes per payment request. If the gateway ever refuses that URL,
-  create-payment retries once with a bare one: a thinner Purchase is
-  recoverable, a buyer who cannot pay is not.
-- **Still unconfigured.** `INSTAMOJO_CLIENT_ID`, `INSTAMOJO_CLIENT_SECRET`,
-  `INSTAMOJO_SALT` and `INSTAMOJO_ENV` are not in `.env.local`, which still
-  carries the three dead `RAZORPAY_*` keys. Until they are filled the pay
-  button says "Payments are not switched on yet. Nothing has been charged."
+- **Payments are on RAZORPAY again, and Instamojo is gone** (17 Sep). Deleted:
+  `lib/instamojo.ts`, `lib/payment-context.ts` and
+  `app/api/instamojo/{create-payment,webhook,return}`, plus `INSTAMOJO-API.md`.
+  Restored: `lib/order-notes.ts`, `app/api/razorpay/create-order`,
+  `app/api/razorpay/webhook`, the `razorpay` block in `lib/checkout-config.ts`
+  and the SDK loader plus sheet handler in `app/checkout/page.tsx`. No npm
+  dependency: the REST API is called over fetch. Purchase, the server-side GA4
+  purchase and the Pabbly hand-off all come from the webhook only, because a
+  UPI buyer does not come back.
+- It is a **SHEET over the checkout, not a redirect**: the buyer never leaves
+  the site, so there is no return route, no `?pay=incomplete` arrival and no
+  back-forward-cache reset. The sheet's `ondismiss` resets the pay button and
+  its success handler forwards to `/thank-you?p=<razorpay_payment_id>`.
+- The context carrier is the **order notes** again (five readable keys plus ten
+  256-char chunk keys, the 15 Razorpay allows), not an encrypted token on a
+  URL. fbp, fbc, the buyer's IP and user agent, the GA4 client id, city,
+  occupation and the whole campaign ride in the order and come back to the
+  webhook verbatim. Razorpay REJECTS an order that breaches 15 keys or 256
+  chars, so the packer sacrifices fields in a declared order rather than
+  risking the sale.
+- The receipt prefix is **`dpp_`**, this client's, not the inherited `kz_`.
+  Order notes `kind` is `peeyush_5day_health_reset`.
+- **Still unconfigured.** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and
+  `RAZORPAY_WEBHOOK_SECRET` are present but blank in `.env.local` (as is every
+  other var in it). Until the first two are filled the pay button says
+  "Payments are not switched on yet. Nothing has been charged."
+- **The webhook must be registered in the dashboard again**: Settings ->
+  Webhooks, URL `<site>/api/razorpay/webhook`, event `payment.captured` only,
+  and the secret you choose there goes into `RAZORPAY_WEBHOOK_SECRET`. This is
+  a step Instamojo did not have, because it took the webhook URL per payment
+  request.
+- **No `image` key on the payment sheet**, deliberately: there is no
+  `public/brand/peeyush-square.jpg` and a missing file renders a broken tile
+  inside Razorpay's iframe. The sheet falls back to the logo uploaded in the
+  Razorpay dashboard. The line to restore is commented in
+  `app/checkout/page.tsx`.
 - Testimonials are **in**: 13 Vimeo clips wired into `proof.tsx` (6 + 7,
   opposite directions), poster frames under `public/images/testimonials/`. They
   were delivered 16:9, not the 9:16 the rail was first built for, so

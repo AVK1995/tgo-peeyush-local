@@ -17,12 +17,12 @@ import { readClientIp, readClientUserAgent } from '@/lib/request-signals';
  * payloads are identical apart from the name and the dedup key, but the
  * allow-list below is what keeps that from becoming a hole: only reviewed
  * names are accepted, and Purchase is explicitly NOT among them. Purchase is
- * only ever sent by the Instamojo webhook, where the payment is proven.
+ * only ever sent by the Razorpay webhook, where the payment is proven.
  *
  * The client IP and user agent are read from THIS request's headers, which is
  * the correct source: this is a fetch from the buyer's own browser. The
- * webhook's equivalent values have to travel in the sealed context token,
- * because that request comes from Instamojo.
+ * webhook's equivalent values have to travel in the order notes, because that
+ * request comes from Razorpay.
  */
 const ALLOWED: SendableEvent[] = [
   'ViewContent',

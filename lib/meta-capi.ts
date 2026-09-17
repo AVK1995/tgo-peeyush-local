@@ -175,7 +175,7 @@ export async function sendCapiEvent(params: {
   user: UserSignals;
   valueRupees: number;
   currency: string;
-  /* An opaque gateway id (Instamojo's payment_request_id). It says nothing
+  /* An opaque gateway id (the Razorpay order id). It says nothing
      about what was bought, and Meta uses it for its own deduplication of a
      purchase across sources. */
   orderId?: string;

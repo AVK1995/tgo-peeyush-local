@@ -5,22 +5,38 @@ import { PRICE_RUPEES } from '@/app/_landing/offer';
  * place. The price comes from offer.ts, which reads it from a single env var,
  * so the amount charged can never drift from the amount displayed.
  *
- * NOTE ON UNITS. Instamojo charges in RUPEES, not paise. There is no
- * `amountPaise` here any more and there must not be one: paise is a Razorpay
- * concept, and a paise figure handed to Instamojo would be a charge a hundred
- * times too large, quietly, on a live page. `PRICE_PAISE` has been deleted from
- * offer.ts as well, so there is no paise value anywhere in the codebase to
- * reach for by accident.
+ * NOTE ON UNITS, AND WHY THE PAISE FIGURE IS DERIVED HERE.
+ *
+ * Razorpay charges in PAISE. On the reference build (tgo-kaizan) the paise
+ * value is exported from offer.ts as PRICE_PAISE, and the right thing would be
+ * to read it from there. It is not exported on this project: it was deleted
+ * when the codebase went rupees-only for Instamojo, and `app/_landing/**` is
+ * SHAPE's half of this build, not this file's, so it is not re-added there in
+ * a payment pass.
+ *
+ * So it is derived from the ONE price, on the line below, and nowhere else.
+ * That keeps the single-source law intact: PRICE_RUPEES is still the only
+ * declared price in the codebase, and `amountPaise` is a unit conversion of it
+ * rather than a second source that can drift.
+ *
+ * ⚠️ The doc comment at the top of app/_landing/offer.ts still says the gateway
+ * takes rupees and that a paise figure would be a charge a hundred times too
+ * large. That was true of Instamojo and it is now stale: this project is back
+ * on Razorpay and paise is correct. It is SHAPE's file, so it was left
+ * untouched in this pass and flagged instead. Do not "fix" the multiplication
+ * below on the strength of that comment.
  */
+const PRICE_PAISE = PRICE_RUPEES * 100;
+
 export const CHECKOUT_CONFIG = {
   amountRupees: PRICE_RUPEES,
+  amountPaise: PRICE_PAISE,
   currency: 'INR',
   contentName: '5-Day Complete Health Reset Challenge',
   /* The launch domain as the fallback, not example.com: this value is sent to
-     Meta as event_source_url and is what the redirect and webhook URLs handed
-     to Instamojo are built from, so an unset env var would quietly attribute
-     live events to a domain we do not own and point the gateway's callbacks at
-     it as well.
+     Meta as event_source_url and written into every Razorpay order, so an
+     unset env var would quietly attribute live events to a domain we do not
+     own.
 
      `||`, not `??`. A host that defines the key with a blank value yields an
      empty string, which `??` passes straight through, and an empty
@@ -33,58 +49,36 @@ export const CHECKOUT_CONFIG = {
     accessToken: process.env.META_CAPI_ACCESS_TOKEN ?? '',
     testEventCode: process.env.META_CAPI_TEST_EVENT_CODE ?? '',
   },
-  instamojo: {
-    clientId: process.env.INSTAMOJO_CLIENT_ID ?? '',
-    clientSecret: process.env.INSTAMOJO_CLIENT_SECRET ?? '',
-    /* The account's PRIVATE SALT, from the dashboard's Integrations page. It is
-       a separate value from the API credentials and it is the one that gets
-       missed. Two things depend on it: verifying the `mac` on every webhook,
-       and the key that seals the buyer context this integration has to carry
-       through the gateway itself. */
-    salt: process.env.INSTAMOJO_SALT ?? '',
-    /* 'test' points every call at the sandbox host. Declared rather than
-       derived, because Instamojo does not stamp the environment into the
-       credential the way Razorpay's rzp_test_ prefix did. Default is 'live':
-       if the flag and the credentials disagree the API rejects the call, which
-       is a loud failure, whereas defaulting to test would let a live-looking
-       deployment take fake payments. */
-    env: (process.env.INSTAMOJO_ENV ?? '').trim().toLowerCase() === 'test'
-      ? ('test' as const)
-      : ('live' as const),
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID ?? '',
+    keySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
+    /* A SEPARATE value from the API keys, taken from Settings -> Webhooks when
+       the webhook is registered, not from the API Keys page. It is the one
+       that gets missed, and the only symptom is silence: without it the
+       webhook rejects every call and no sale is ever reported to Meta, GA4 or
+       Pabbly. */
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
   },
 } as const;
-
-/**
- * The `purpose` string, which is the ONLY field that travels with an Instamojo
- * payment request, and it is capped at 30 characters by the gateway.
- *
- * The buyer reads it on the payment page, so it is the product name rather
- * than an internal code, truncated to the longest faithful prefix that fits:
- * "5-Day Complete Health Reset Challenge" is 37 characters and would be
- * rejected. The slice is belt and braces in case the name above is ever
- * edited without counting.
- */
-export const INSTAMOJO_PURPOSE = '5-Day Complete Health Reset'.slice(0, 30);
 
 /** True only when a real CAPI call can be made. Routes check this and skip
  *  quietly rather than posting to Meta with an empty pixel id. */
 export const capiReady = () =>
   Boolean(CHECKOUT_CONFIG.meta.pixelId && CHECKOUT_CONFIG.meta.accessToken);
 
-/** True only when a payment request can actually be created. */
-export const instamojoReady = () =>
-  Boolean(
-    CHECKOUT_CONFIG.instamojo.clientId && CHECKOUT_CONFIG.instamojo.clientSecret,
-  );
-
 /**
- * Whether this deployment is transacting in test mode.
+ * Whether this deployment is transacting in test mode, derived rather than
+ * declared.
+ *
+ * Razorpay stamps its own environment into the key id (`rzp_test_` versus
+ * `rzp_live_`) so this cannot drift out of sync the way a separate IS_TEST env
+ * var would when someone swaps the keys and forgets the flag. A Meta test
+ * event code is also treated as test, because events sent with one do not
+ * count toward optimisation and the sale they describe is not real.
  *
  * It rides to Pabbly as `is_test` so a staging purchase can be routed away
- * from the live WhatsApp invite instead of onboarding a fictional buyer. A
- * Meta test event code counts as test too, because events sent with one do not
- * reach optimisation and the sale they describe is not real.
+ * from the live WhatsApp invite instead of onboarding a fictional buyer.
  */
 export const isTestMode = () =>
-  CHECKOUT_CONFIG.instamojo.env === 'test' ||
+  CHECKOUT_CONFIG.razorpay.keyId.startsWith('rzp_test_') ||
   Boolean(CHECKOUT_CONFIG.meta.testEventCode);

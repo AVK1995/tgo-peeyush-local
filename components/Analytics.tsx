@@ -20,6 +20,15 @@ import Script from 'next/script';
  * afterInteractive, not beforeInteractive: neither tag is needed for first
  * paint, and the first event this page fires (view_item) is dispatched from
  * FunnelTracker's effect, which runs after hydration.
+ *
+ * ⚠️ The Clarity Script id is "ms-clarity" and must NEVER be "clarity". Any
+ * element with an id becomes a named global, so id="clarity" makes
+ * window.clarity an HTMLScriptElement before the snippet below runs. The
+ * snippet's `c[a] = c[a] || function(){...}` then sees a truthy value, skips
+ * creating the queue stub, and the tag from clarity.ms dies on
+ * "a[c] is not a function". The tag loads, the project is valid, and the
+ * dashboard stays empty, with the only trace a single console error. Found and
+ * fixed on the Kaizen build; this file carries the fix, and now the reason.
  */
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID ?? '';
 const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID ?? '';
@@ -45,7 +54,7 @@ gtag('config', '${GA4_ID}');`}
       )}
 
       {CLARITY_ID && (
-        <Script id="clarity" strategy="afterInteractive">
+        <Script id="ms-clarity" strategy="afterInteractive">
           {`(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
 t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
 y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,'clarity','script','${CLARITY_ID}');`}

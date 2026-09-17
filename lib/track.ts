@@ -122,7 +122,7 @@ export function trackInitiateCheckout(person: Person) {
 }
 
 /**
- * GA4 only. Meta's Purchase comes from the Instamojo webhook, where the payment
+ * GA4 only. Meta's Purchase comes from the Razorpay webhook, where the payment
  * is proven, firing it here as well would double-count every sale.
  */
 export function trackPurchase(transactionId: string) {

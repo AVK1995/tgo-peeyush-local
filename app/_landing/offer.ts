@@ -6,16 +6,17 @@
  */
 
 /**
- * THE price. One number, from one env var, used by the copy, the GA4 event
- * values and the amount Instamojo actually charges. Nothing anywhere else may
- * declare a price: two sources drift, and the drift is invisible until the
+ * THE price, in RUPEES. One number, from one env var, used by the copy, the
+ * GA4 event values and the amount the gateway charges. Nothing anywhere else
+ * may declare a price: two sources drift, and the drift is invisible until the
  * charge and the label disagree on a live page.
  *
- * RUPEES, end to end. There is deliberately no paise export here any more:
- * Instamojo takes the amount in rupees, so a paise figure reaching the gateway
- * is a charge a hundred times too large, and it fails quietly rather than
- * loudly. The old `PRICE_PAISE` was a Razorpay concept and nothing read it
- * after the gateway swap.
+ * This file stays rupees-only even though Razorpay charges in PAISE. The
+ * conversion lives once, in `lib/checkout-config.ts`, next to the code that
+ * actually talks to the gateway. It was briefly exported here as
+ * `PRICE_PAISE`; that came back to bite when the funnel moved to a
+ * rupees-denominated gateway and again when it moved back, so the rule is now:
+ * the landing page speaks rupees, the payment layer converts.
  */
 /* `??` does NOT catch an empty string, and .env.example ships every key blank.
    So a copied-but-unfilled .env.local would give Number('') === 0: a page

@@ -42,7 +42,7 @@ export default function SiteFooter({ children }: { children?: React.ReactNode })
         </p>
 
         {/* Operator identity and a reachable contact, on EVERY page. The
-            gateway's merchant review (Instamojo here, and every other one)
+            gateway's merchant review (Razorpay here, and every other one)
             looks for the registered name, a postal address and
             a working phone plus email on the site itself, not only buried in a
             policy page, and a reviewer who cannot find them fails the account

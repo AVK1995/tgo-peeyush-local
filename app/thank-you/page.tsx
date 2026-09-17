@@ -125,14 +125,14 @@ function ThankYou() {
   const paymentId = useSearchParams().get('p') ?? '';
 
   /* GA4 purchase only. Meta's Purchase and the server-side GA4 copy both come
-     from the Instamojo webhook, where the payment is proven and where buyers
-     who never return to this page are still counted, which on a redirect
-     gateway is most of them.
+     from the Razorpay webhook, where the payment is proven and where buyers
+     who never return to this page are still counted, which for UPI is most of
+     them.
 
-     `p` is the Instamojo payment_id, put there by /api/instamojo/return after
-     it confirmed the payment with the gateway. It is the same string the
-     webhook uses as the Meta event_id and the GA4 transaction_id, so the two
-     sources of this sale collapse into one wherever they meet. */
+     `p` is the razorpay_payment_id, put there by the checkout page's success
+     handler. It is the same string the webhook uses as the Meta event_id and
+     the GA4 transaction_id, so the two sources of this sale collapse into one
+     wherever they meet. */
   useEffect(() => {
     if (paymentId) trackPurchase(paymentId);
   }, [paymentId]);

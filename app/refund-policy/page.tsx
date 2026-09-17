@@ -42,8 +42,8 @@ export const metadata: Metadata = {
  * What IS stated here is only what is known: the promise in the client's own
  * words, the inbox that receives requests (the real monitored address from
  * ./legal), that refunds return to the original payment method, and that bank
- * settlement time is outside anyone's control. On Instamojo the refund itself
- * is initiated from the gateway dashboard.
+ * settlement time is outside anyone's control. On Razorpay the refund itself
+ * is initiated from the gateway dashboard, against the payment.
  */
 export default function RefundPolicyPage() {
   return (

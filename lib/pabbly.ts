@@ -5,7 +5,7 @@
  * who bought, so the buyer actually receives what they paid for: the WhatsApp
  * invite, the joining details, the guide downloads, the row in a sheet.
  *
- * It is fired from the Instamojo webhook and nowhere else, for the same reason
+ * It is fired from the Razorpay webhook and nowhere else, for the same reason
  * the Purchase event is: the webhook is the only place a payment is proven, and
  * UPI buyers routinely never return to the confirmation page. A browser-side
  * hand-off would silently skip most Indian buyers.
@@ -18,7 +18,7 @@
  * ── Why this payload carries the Meta match keys too ──────────────────────
  * Pabbly is not only fulfilment; it is the ONLY place the full, unhashed
  * record of a sale exists. Meta receives hashes and nothing descriptive, GA4
- * receives no PII at all, and Instamojo holds only what it needs to charge a
+ * receives no PII at all, and Razorpay holds only what it needs to charge a
  * card. So `fbc`, `fbp`, `client_ip_address`, `client_user_agent`,
  * `external_id` and `purchase_event_id` ride along here as well, they are
  * what makes it possible to rebuild, replay or reconcile a Meta event later

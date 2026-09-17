@@ -9,13 +9,13 @@
  * in a JSON body is trivially forgeable, so both are taken from the request
  * headers instead, the same way /api/meta/event has always done it.
  *
- * The catch is WHERE they are read. The Instamojo webhook is a request from
- * Instamojo, not from the buyer, so its headers carry Instamojo's IP and
- * Instamojo's agent. Reading them there would ship a confidently wrong value,
+ * The catch is WHERE they are read. The Razorpay webhook is a request from
+ * Razorpay, not from the buyer, so its headers carry Razorpay's IP and
+ * Razorpay's agent. Reading them there would ship a confidently wrong value,
  * which is worse for matching than shipping nothing. So they are captured at
- * create-payment time, the last request the buyer's own browser makes before
- * the gateway takes over, and carried to the webhook inside the sealed context
- * token on the webhook URL. See lib/payment-context.ts.
+ * create-order time, the last request the buyer's own browser makes before the
+ * payment sheet takes over, and carried to the webhook inside the order notes.
+ * See lib/order-notes.ts.
  *
  * Header order matters. `x-forwarded-for` is a comma-separated chain in which
  * the ORIGINAL client is first and every proxy appends itself; taking the last
