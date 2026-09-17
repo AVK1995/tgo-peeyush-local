@@ -75,7 +75,12 @@ const DESCRIPTION = `A live, doctor-led 5-day challenge for people struggling wi
    but if it is still this string on launch day every share preview and the
    canonical URL point at a domain nobody owns. Set the env var, then correct
    this literal in the same pass. */
-const FALLBACK_ORIGIN = 'https://challenge.drpeeyushprabhat.com';
+/* Matched to the NEXT_PUBLIC_SITE_URL now in .env.local (17 Sep). It was a
+   guessed subdomain while the real one was unknown, which is the dangerous
+   shape for a fallback: it only fires when the env var is missing, which is
+   exactly when nobody is watching, and it would have pointed metadata and
+   every event_source_url at a domain that may not resolve. */
+const FALLBACK_ORIGIN = 'https://www.drpeeyushprabhat.com';
 
 function resolveSiteUrl(): string {
   const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();

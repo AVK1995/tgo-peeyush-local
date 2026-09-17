@@ -68,6 +68,11 @@ export type PabblyPurchase = {
    empty one. */
 const s = (v: unknown) => (v == null ? '' : String(v));
 
+/* One constant behind both `type` and `event`, so a workflow branching on
+   either takes the same path. This funnel emits one record type: the caller is
+   the Razorpay webhook and it only fires on payment.captured. */
+const RECORD_TYPE = 'purchase';
+
 export async function sendPabblyPurchase(
   p: PabblyPurchase,
 ): Promise<{ ok: boolean; status: number }> {
@@ -89,6 +94,14 @@ export async function sendPabblyPurchase(
         phone: s(p.phone),
         city: s(p.city),
         country_code: s(p.countryCode),
+        /* The record type, in the position the agreed column set puts it. It
+           carries the SAME value as `event` below, from one constant, so the
+           two can never disagree: this funnel hands off exactly one kind of
+           record, a completed purchase, because the webhook is the only caller
+           and it only fires on payment.captured. If the workflow ever means
+           something else by `type` (a product class, paid vs free), it is one
+           line here. */
+        type: RECORD_TYPE,
         fbc: s(p.fbc),
         fbp: s(p.fbp),
         client_ip_address: s(p.clientIp),
@@ -110,7 +123,7 @@ export async function sendPabblyPurchase(
         referrer: s(p.referrer),
         landing_url: s(p.landingUrl),
 
-        event: 'purchase',
+        event: RECORD_TYPE,
         payment_id: s(p.paymentId),
         order_id: s(p.orderId),
         name: `${s(p.firstName)} ${s(p.lastName)}`.trim(),

@@ -68,13 +68,10 @@ const COVERS: Record<IncludedItem['key'], string | null> = {
   challenge: asset('/system/challenge-days.webp'),
   breath: asset('/system/guide-breath.webp'),
   stress: asset('/system/guide-stress.webp'),
-  /* ⚠️ STILL MISSING. The renders supplied on 15 Sep are: the five day cards,
-     the Breath blueprint, and TWO different Stress Emergency Toolkit
-     compositions (the spare is /system/guide-stress-alt.webp). There is no
-     10-Minute Joint Mobility & Pain Relief Playbook cover, and putting the
-     spare Stress render here would show the buyer the wrong product, so this
-     slot keeps its reserved box at the same 1:1. */
-  mobility: null,
+  /* Landed 17 Sep, the last of the four. Until then this slot held a reserved
+     box rather than the spare Stress Emergency Toolkit render that came in the
+     same batch: a cover showing the wrong product is worse than no cover. */
+  mobility: asset('/system/guide-mobility.webp'),
 };
 
 const COVER_LABEL: Record<IncludedItem['key'], string> = {
