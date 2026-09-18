@@ -28,12 +28,15 @@ export const PRICE = `₹${PRICE_RUPEES.toLocaleString('en-IN')}`;
 /** The anchor the announcement bar names. Rising, per the source copy. */
 export const PRICE_RISES_TO = '₹1599';
 
-/* The cohort. The source copy writes the date as "[30th September]", in
-   brackets, which is the shape of a fill-in-the-blank rather than a date. Atul
-   confirmed 30th September 2026, so the brackets are dropped: rendering them
-   literally would ship a template marker to a live page. The words are
-   otherwise untouched. */
-export const START_DATE = '30th September';
+/* The cohort. The source copy wrote the date as "[30th September]", in
+   brackets, which is the shape of a fill-in-the-blank rather than a date, so
+   the brackets were dropped: rendering them literally would ship a template
+   marker to a live page.
+
+   MOVED TO 7TH OCTOBER 2026 (Atul, 2026-09-18). The year is carried in the
+   string now: the cohort is weeks out and a bare day-and-month on a live page
+   is ambiguous once it is close to a year boundary. */
+export const START_DATE = '7th October 2026';
 export const SESSION_TIMES = '6:30 AM & 7:30 PM';
 export const SESSION_TIMES_TZ = '6:30 AM or 7:30 PM IST';
 
