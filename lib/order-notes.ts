@@ -53,9 +53,24 @@ export type OrderContext = {
   utmCampaign: string;
   utmContent: string;
   utmTerm: string;
+  utmId: string;
   fbclid: string;
   referrer: string;
   landingUrl: string;
+  /* ── Meta's own ad identifiers ──────────────────────────────────────────
+     Meta can substitute these into the destination url via its dynamic
+     parameters ({{ad.id}}, {{adset.id}}, {{campaign.id}}, {{placement}},
+     {{site_source_name}}). They are carried SEPARATELY from the UTMs because
+     they are the ids Ads Manager is keyed on: a utm_campaign is whatever the
+     media buyer typed, and it changes when the campaign is renamed, whereas
+     campaign_id is stable and joins a Pabbly row to an Ads Manager row
+     without a lookup table. Empty for every non-Meta visitor, which costs
+     nothing: empty fields are stripped before packing. */
+  adId: string;
+  adsetId: string;
+  campaignId: string;
+  placement: string;
+  siteSourceName: string;
 };
 
 export const EMPTY_CONTEXT: OrderContext = {
@@ -76,9 +91,15 @@ export const EMPTY_CONTEXT: OrderContext = {
   utmCampaign: '',
   utmContent: '',
   utmTerm: '',
+  utmId: '',
   fbclid: '',
   referrer: '',
   landingUrl: '',
+  adId: '',
+  adsetId: '',
+  campaignId: '',
+  placement: '',
+  siteSourceName: '',
 };
 
 const CHUNK_SIZE = 256;
@@ -118,6 +139,15 @@ const OTHER_CAPS: Partial<Record<keyof OrderContext, number>> = {
   utmCampaign: 100,
   utmContent: 100,
   utmTerm: 100,
+  utmId: 100,
+  /* Meta ids are numeric strings around 15-17 digits; 32 is double the room
+     they need and still cheap. `placement` and `site_source_name` are short
+     enums ("Facebook_Mobile_Feed", "an", "ig"). */
+  adId: 32,
+  adsetId: 32,
+  campaignId: 32,
+  placement: 48,
+  siteSourceName: 32,
 };
 
 function applyCaps(ctx: OrderContext): OrderContext {
@@ -168,8 +198,63 @@ export function packContext(ctx: OrderContext): Record<string, string> {
     chunks = chunk(serialise(working));
   }
 
+  /* ── THE LAST RESORT, AND WHY IT IS NOT A `slice` ──────────────────────
+     This used to end with `chunks.slice(0, MAX_CHUNKS)`, which is a silent
+     data-loss bug of the worst kind: slicing a chunked JSON string cuts it
+     mid-token, so `unpackContext` cannot parse it and falls back to
+     EMPTY_CONTEXT. The order is accepted, the payment succeeds, and the
+     fulfilment row arrives completely blank — the failure looks like the one
+     that was just fixed, with no log line anywhere saying so.
+
+     So if the sacrificial fields were not enough, keep dropping REAL fields,
+     worst-value-per-byte first, and re-serialise each time. What survives to
+     the end is the minimum that still identifies a buyer and their campaign.
+     Dropping a field loses one column; emitting a truncated blob loses all
+     of them. */
+  const LAST_RESORT: Array<keyof OrderContext> = [
+    'siteSourceName',
+    'placement',
+    'gaCid',
+    'utmTerm',
+    'utmContent',
+    'utmId',
+    'adsetId',
+    'adId',
+    'campaignId',
+    'fbp',
+    'fbc',
+    'externalId',
+    'utmMedium',
+    'utmSource',
+    'occupation',
+    'city',
+  ];
+  for (const k of LAST_RESORT) {
+    if (chunks.length <= MAX_CHUNKS) break;
+    working[k] = '';
+    chunks = chunk(serialise(working));
+  }
+
+  if (chunks.length > MAX_CHUNKS) {
+    /* Unreachable with the caps above (the irreducible core is ~350 chars
+       against 2,560 of carrier), but asserted rather than assumed, because
+       the cost of being wrong is a blank fulfilment row. */
+    console.error(
+      `[order-notes] context will not fit in ${MAX_CHUNKS} chunks, ` +
+        `needed ${chunks.length}; falling back to identity only`,
+    );
+    chunks = chunk(
+      JSON.stringify({
+        createdAt: working.createdAt,
+        firstName: working.firstName,
+        lastName: working.lastName,
+        country: working.country,
+      }),
+    );
+  }
+
   const notes: Record<string, string> = {};
-  chunks.slice(0, MAX_CHUNKS).forEach((c, i) => {
+  chunks.forEach((c, i) => {
     notes[`x${i}`] = c;
   });
   return notes;

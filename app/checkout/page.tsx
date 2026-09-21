@@ -273,7 +273,41 @@ export default function CheckoutPage() {
         prefill: {
           name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(),
           email: f.email.trim(),
-          contact: e164,
+          /* `+` prefixed, per Razorpay's own guidance on the contact field:
+             "Format: +(country code)(phone number)". Without the plus the
+             sheet can read a bare 91xxxxxxxxxx as a local number and fall
+             back to its remembered value. */
+          contact: `+${e164}`,
+        },
+        /* ── WHY THESE ARE LOCKED ──────────────────────────────────────────
+           Razorpay Checkout recognises a returning device and populates the
+           contact and email fields from ITS OWN remembered customer, which
+           silently beats our prefill. On a shared browser that is a previous
+           payer's address; for a returning buyer it is whatever they used the
+           last time they paid anyone through Razorpay.
+
+           The consequence is not cosmetic. The address on the payment entity
+           is what the fulfilment row used to carry, so the WhatsApp invite and
+           the guides were being addressed to a stranger while the buyer who
+           just paid got nothing. That is what put `nirmitmaniar@gmail.com` on
+           a row whose buyer had typed something else.
+
+           `readonly` is Razorpay's documented lever for this: the field is
+           pinned to the value WE pass and the customer cannot edit it, so the
+           remembered value cannot win. The details were already collected and
+           validated on this page a moment ago, so nothing is lost by locking
+           them — the buyer is not being asked for anything twice.
+
+           NOTE: `name` is deliberately NOT locked. It is the CARDHOLDER name,
+           which legitimately differs from the buyer's (a spouse's card, a
+           company card), and locking it would block those payments outright.
+
+           The webhook also no longer trusts the gateway's email over the
+           form's, so this is belt and braces: even if Razorpay changes how
+           recognition works, fulfilment still follows the form. */
+        readonly: {
+          email: true,
+          contact: true,
         },
         theme: { color: C.navyDeep },
         modal: { ondismiss: () => setBusy(false) },

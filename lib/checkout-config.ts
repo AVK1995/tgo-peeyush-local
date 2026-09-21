@@ -40,10 +40,18 @@ export const CHECKOUT_CONFIG = {
 
      `||`, not `??`. A host that defines the key with a blank value yields an
      empty string, which `??` passes straight through, and an empty
-     event_source_url is silently worthless to Meta. */
+     event_source_url is silently worthless to Meta.
+
+     TRAILING SLASHES ARE STRIPPED, and that is not cosmetic. Callers append
+     paths to this (`${eventSourceUrl}/checkout`), so a host env var entered as
+     `https://drpeeyushprabhat.com/` — which is exactly how a browser offers it
+     when you copy the address bar — produced `https://drpeeyushprabhat.com//checkout`
+     on every fulfilment row and every Meta event. Meta treats that as a
+     different URL from the real one, which quietly splits the event's
+     attribution. */
   fallbackEventSourceUrl:
-    (process.env.NEXT_PUBLIC_SITE_URL || '').trim() ||
-    'https://challenge.drpeeyushprabhat.com',
+    ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() ||
+      'https://challenge.drpeeyushprabhat.com').replace(/\/+$/, ''),
   meta: {
     pixelId: process.env.META_PIXEL_ID ?? '',
     accessToken: process.env.META_CAPI_ACCESS_TOKEN ?? '',

@@ -59,6 +59,90 @@ export type PabblyPurchase = {
   currency: string;
   product: string;
   occupation: string;
+
+  /* ── Added in the "webhook arrives empty" pass ──────────────────────────
+     Everything below was either not sent at all, or was being sent as an
+     empty string because the webhook was reading the buyer context out of the
+     wrong Razorpay entity. See lib/razorpay-order.ts for that root cause.
+
+     These are additive: every key that existed before still exists, under the
+     same name, so no Pabbly step that is already mapped can break. */
+
+  /** GA4's client id. Already carried in the order notes, never forwarded.
+   *  It is what joins a sheet row to a GA4 session. */
+  gaClientId: string;
+  utmId: string;
+  adId: string;
+  adsetId: string;
+  campaignId: string;
+  placement: string;
+  siteSourceName: string;
+
+  /** When Razorpay captured the payment, ISO 8601. Distinct from `createdAt`,
+   *  which is when the buyer submitted the form: a UPI payment can settle
+   *  minutes later, and reconciliation needs both. */
+  paidAt: string;
+  /** The exact charged amount in paise, alongside the rupee figure. Rupees is
+   *  a division and can carry a float; paise is what Razorpay's ledger says. */
+  amountPaise: number;
+  amountRefundedRupees: number;
+  /** Razorpay's own cut, in rupees, so net revenue is a column and not a
+   *  monthly export. Zero until Razorpay computes it, which for some methods
+   *  is after capture. */
+  feeRupees: number;
+  taxRupees: number;
+
+  /** What RAZORPAY had on file for the payer, which is not necessarily what
+   *  the buyer typed into our checkout form.
+   *
+   *  `email` and `phone` above are the form's values and are what fulfilment
+   *  must follow — they are the address the buyer asked us to send the invite
+   *  to. These two are the gateway's copy, kept because a mismatch between
+   *  them is the first thing worth seeing when reconciling a refund or
+   *  chasing "I never got the WhatsApp link". */
+  paymentEmail: string;
+  paymentContact: string;
+
+  /** How it was actually paid: upi / card / netbanking / wallet / emi. */
+  method: string;
+  bank: string;
+  wallet: string;
+  vpa: string;
+  cardId: string;
+  cardLast4: string;
+  cardNetwork: string;
+  cardType: string;
+  cardIssuer: string;
+  status: string;
+  captured: boolean;
+  international: boolean;
+  description: string;
+
+  /** Acquirer references. `rrn` and `upiTransactionId` are what a bank asks
+   *  for when a buyer disputes a charge or claims money left their account
+   *  without an invite arriving. */
+  rrn: string;
+  upiTransactionId: string;
+  bankTransactionId: string;
+  authCode: string;
+  errorCode: string;
+  errorDescription: string;
+
+  /** Order-side facts, from the order Razorpay holds. `orderReceipt` is the
+   *  `dpp_*` string the dashboard is searched by. */
+  orderReceipt: string;
+  orderAttempts: number;
+  orderCreatedAt: string;
+
+  /** Which Razorpay event produced this row, and when we handled it. Both are
+   *  for debugging a silent gap later: a row with no `webhookReceivedAt` came
+   *  from somewhere other than this webhook. */
+  webhookEvent: string;
+  webhookReceivedAt: string;
+  /** False when the buyer context could not be recovered from the order. The
+   *  single most useful column on this payload: it is the alarm for the exact
+   *  regression this pass fixed, and a Pabbly router can branch on it. */
+  contextRecovered: boolean;
 };
 
 /* Every key is emitted on every call, empty string where unknown. Pabbly
@@ -130,6 +214,60 @@ export async function sendPabblyPurchase(
         currency: s(p.currency),
         product: s(p.product),
         occupation: s(p.occupation),
+
+        /* ── Campaign, continued ─────────────────────────────────────────
+           The Ads Manager ids, kept next to the UTMs they belong with. */
+        ga_client_id: s(p.gaClientId),
+        utm_id: s(p.utmId),
+        ad_id: s(p.adId),
+        adset_id: s(p.adsetId),
+        campaign_id: s(p.campaignId),
+        placement: s(p.placement),
+        site_source_name: s(p.siteSourceName),
+
+        /* ── The payment itself ──────────────────────────────────────────
+           Numbers stay numbers and booleans stay booleans: a Pabbly router
+           comparing a spreadsheet cell against a number does not match the
+           string "1", and a condition on the string "false" is true. */
+        paid_at: s(p.paidAt),
+        amount_paise: p.amountPaise,
+        amount_refunded: p.amountRefundedRupees,
+        razorpay_fee: p.feeRupees,
+        razorpay_tax: p.taxRupees,
+        /* The gateway's own record of the payer, beside the form's. `email`
+           and `phone` at the top of this payload remain the fulfilment
+           address; these two exist so the difference is visible. */
+        payment_email: s(p.paymentEmail),
+        payment_contact: s(p.paymentContact),
+        payment_method: s(p.method),
+        payment_bank: s(p.bank),
+        payment_wallet: s(p.wallet),
+        payment_vpa: s(p.vpa),
+        card_id: s(p.cardId),
+        card_last4: s(p.cardLast4),
+        card_network: s(p.cardNetwork),
+        card_type: s(p.cardType),
+        card_issuer: s(p.cardIssuer),
+        payment_status: s(p.status),
+        payment_captured: Boolean(p.captured),
+        payment_international: Boolean(p.international),
+        payment_description: s(p.description),
+        rrn: s(p.rrn),
+        upi_transaction_id: s(p.upiTransactionId),
+        bank_transaction_id: s(p.bankTransactionId),
+        auth_code: s(p.authCode),
+        error_code: s(p.errorCode),
+        error_description: s(p.errorDescription),
+
+        /* ── The order ───────────────────────────────────────────────────*/
+        order_receipt: s(p.orderReceipt),
+        order_attempts: p.orderAttempts,
+        order_created_at: s(p.orderCreatedAt),
+
+        /* ── Provenance ──────────────────────────────────────────────────*/
+        webhook_event: s(p.webhookEvent),
+        webhook_received_at: s(p.webhookReceivedAt),
+        context_recovered: Boolean(p.contextRecovered),
       }),
     });
     return { ok: res.ok, status: res.status };

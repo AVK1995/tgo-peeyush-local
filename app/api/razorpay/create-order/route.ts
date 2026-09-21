@@ -105,9 +105,20 @@ export async function POST(req: Request) {
       utmCampaign: truncate(utm.campaign, 100),
       utmContent: truncate(utm.content, 100),
       utmTerm: truncate(utm.term, 100),
+      utmId: truncate(utm.id, 100),
       fbclid: truncate(body.fbclid, 200),
       referrer: truncate(body.referrer, 200),
       landingUrl: truncate(body.landingUrl, 300),
+      /* Meta's dynamic ad parameters. They cost nothing on an organic visit
+         (empty fields are stripped before the context is packed) and they are
+         the only way a fulfilment row can be joined back to a specific ad
+         without matching on a campaign NAME, which changes under the media
+         buyer's hands. */
+      adId: truncate(body.adId, 32),
+      adsetId: truncate(body.adsetId, 32),
+      campaignId: truncate(body.campaignId, 32),
+      placement: truncate(body.placement, 48),
+      siteSourceName: truncate(body.siteSourceName, 32),
     }),
   };
 

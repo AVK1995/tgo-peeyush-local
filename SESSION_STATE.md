@@ -82,10 +82,20 @@ two options → recap with strike-and-pop price → colophon footer.
 - The context carrier is the **order notes** again (five readable keys plus ten
   256-char chunk keys, the 15 Razorpay allows), not an encrypted token on a
   URL. fbp, fbc, the buyer's IP and user agent, the GA4 client id, city,
-  occupation and the whole campaign ride in the order and come back to the
-  webhook verbatim. Razorpay REJECTS an order that breaches 15 keys or 256
-  chars, so the packer sacrifices fields in a declared order rather than
-  risking the sale.
+  occupation and the whole campaign ride in the order. Razorpay REJECTS an
+  order that breaches 15 keys or 256 chars, so the packer sacrifices fields in
+  a declared order rather than risking the sale.
+- ⚠️ **They do NOT "come back to the webhook verbatim", and believing that was
+  a live bug** (fixed 21 Sep 2026). Order notes and payment notes are separate
+  fields on separate entities, and the `payment.captured` payload contains only
+  the PAYMENT entity, whose `notes` is `[]` on every sale. The webhook was
+  reading that empty array, so every Pabbly row arrived with a blank
+  `created_at`, name, city, UTMs, fbc/fbp, IP and user agent — only email,
+  phone and amount survived, because those are fields on the payment itself.
+  The webhook now fetches the order back by id (`lib/razorpay-order.ts`) and
+  reads the notes from there, which works under either webhook event and cannot
+  be forged by the browser. `context_recovered` on the Pabbly payload is the
+  alarm if it ever regresses.
 - The receipt prefix is **`dpp_`**, this client's, not the inherited `kz_`.
   Order notes `kind` is `peeyush_5day_health_reset`.
 - **Still unconfigured.** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and
