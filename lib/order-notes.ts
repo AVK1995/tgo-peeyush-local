@@ -40,6 +40,11 @@ export type OrderContext = {
   firstName: string;
   lastName: string;
   city: string;
+  /* "+91". Carried apart from the number because `phone` reaches Pabbly as
+     full E.164 and the code cannot be split back out of it: +1 and +91 both
+     begin with a 1, so any leading-digit guess is wrong for the countries
+     that share a prefix. */
+  dialCode: string;
   country: string; // ISO 3166-1 alpha-2, lowercase
   occupation: string;
   externalId: string;
@@ -63,6 +68,7 @@ export const EMPTY_CONTEXT: OrderContext = {
   firstName: '',
   lastName: '',
   city: '',
+  dialCode: '',
   country: '',
   occupation: '',
   externalId: '',
@@ -199,4 +205,78 @@ export function unpackContext(notes: Record<string, unknown>): OrderContext {
        inside a webhook that must return 200 or be retried. */
     return { ...EMPTY_CONTEXT };
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   READING AN ORDER BACK, IN EITHER SHAPE (2026-09-22)
+   ----------------------------------------------------------------------
+   create-order now writes ONE KEY PER FIELD (`fbc`, `ip`, `ua`, `lp`, `ref`,
+   `clid`, plus two small `packJsonNote` bundles, `cust` and `utm`). The old
+   shape above serialised everything into one JSON string sliced across
+   `x0`..`x9`, which fails all-or-nothing: the slice cuts mid-string, the
+   parse throws, and every field comes back empty together.
+
+   BOTH SHAPES HAVE TO BE READABLE, because an order created before the
+   deploy can be paid after it. A UPI collect request can sit in a bank app
+   for minutes, and a buyer who was mid-checkout when this shipped must not
+   lose their record. So: new shape if its keys are present, old shape
+   otherwise, and the old path can be deleted once no unpaid orders predate
+   the deploy.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
+function readBundle(raw: unknown): Record<string, string> {
+  const s = str(raw);
+  if (!s) return {};
+  try {
+    const parsed = JSON.parse(s) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+  } catch {
+    /* packJsonNote guarantees valid JSON, so this only fires on a note written
+       by something else. An empty bundle costs those fields, never the rest. */
+  }
+  return {};
+}
+
+export function readOrderContext(notes: Record<string, unknown>): OrderContext {
+  /* The old blob had no `cust`; the new shape always writes one, even when it
+     packs down to `{}`. Either marker being present means the new writer. */
+  const isNew = notes.cust != null || notes.lp != null || notes.clid != null;
+  if (!isNew) return unpackContext(notes);
+
+  const cust = readBundle(notes.cust);
+  const meta = readBundle(notes.meta);
+  const utm = readBundle(notes.utm);
+
+  return {
+    /* Always '' on the new shape: create-order stopped writing a timestamp on
+       2026-09-22 and the webhook takes the date from Razorpay's own
+       `payment.created_at` instead. The field stays on the type because the
+       OLD chunked shape still carries one, and an order created before that
+       deploy can still be paid after it. */
+    createdAt: str(meta.cd),
+    firstName: str(cust.fn),
+    lastName: str(cust.ln),
+    city: str(cust.ct),
+    dialCode: str(cust.dl),
+    country: str(cust.co),
+    occupation: str(meta.oc),
+    externalId: str(meta.xid),
+    gaCid: str(meta.ga),
+    fbc: str(notes.fbc),
+    fbp: str(notes.fbp),
+    clientIp: str(notes.ip),
+    clientUserAgent: str(notes.ua),
+    utmSource: str(utm.s),
+    utmMedium: str(utm.m),
+    utmCampaign: str(utm.c),
+    utmContent: str(utm.n),
+    utmTerm: str(utm.t),
+    fbclid: str(notes.clid),
+    referrer: str(notes.ref),
+    landingUrl: str(notes.lp),
+  };
 }

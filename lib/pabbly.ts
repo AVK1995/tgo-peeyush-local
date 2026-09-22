@@ -34,6 +34,8 @@ export type PabblyPurchase = {
   email: string;
   phone: string;
   city: string;
+  /** "+91", kept apart from `phone`, which arrives as full E.164. */
+  dialCode: string;
   countryCode: string;
   fbc: string;
   fbp: string;
@@ -93,6 +95,7 @@ export async function sendPabblyPurchase(
         email: s(p.email),
         phone: s(p.phone),
         city: s(p.city),
+        dial_code: s(p.dialCode),
         country_code: s(p.countryCode),
         /* The record type, in the position the agreed column set puts it. It
            carries the SAME value as `event` below, from one constant, so the

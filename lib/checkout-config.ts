@@ -33,6 +33,22 @@ export const CHECKOUT_CONFIG = {
   amountPaise: PRICE_PAISE,
   currency: 'INR',
   contentName: '5-Day Complete Health Reset Challenge',
+  /* ── THIS FUNNEL'S MARK ON ITS OWN ORDERS (2026-09-22) ─────────────
+     Written into every order's `notes.kind` at create time, and checked by
+     the webhook before it fires anything.
+
+     THE REASON IS HOW RAZORPAY FANS OUT. A webhook is registered per URL on
+     an ACCOUNT, and every subscribed event goes to every registered URL. So
+     this endpoint sees every captured payment on the account, not just the
+     ones this checkout created: another funnel on the same account, a
+     payment link made by hand in the dashboard, an invoice. Until this
+     value was read, all of them were being reported as a sale of THIS
+     challenge, to Meta, to GA4 and to the fulfilment hand-off.
+
+     One constant, read by both routes, because a marker that is written in
+     one file and matched by a literal in another is a marker that silently
+     stops matching the day somebody renames the funnel. */
+  orderKind: 'peeyush_5day_health_reset',
   /* The launch domain as the fallback, not example.com: this value is sent to
      Meta as event_source_url and written into every Razorpay order, so an
      unset env var would quietly attribute live events to a domain we do not
