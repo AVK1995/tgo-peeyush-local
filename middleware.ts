@@ -7,7 +7,7 @@ import {
   mergeAttribution,
   parseAttributionFromUrl,
   readAttrCookie,
-} from '@/lib/attribution';
+} from '@/lib/attribution-edge';
 
 /* ============================================================================
    EDGE ATTRIBUTION CAPTURE (ported from ResetByShruti, 2026-09-22)

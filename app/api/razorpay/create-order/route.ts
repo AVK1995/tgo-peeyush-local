@@ -2,8 +2,8 @@ import crypto from 'crypto';
 
 import { NextResponse } from 'next/server';
 
+import { ATTR_COOKIE, packJsonNote, readAttrCookie } from '@/lib/attribution-edge';
 import { CHECKOUT_CONFIG, isTestMode } from '@/lib/checkout-config';
-import { ATTR_COOKIE, packJsonNote, readAttrCookie } from '@/lib/attribution';
 import { readClientIp, readClientUserAgent, readRequestCookie } from '@/lib/request-signals';
 
 /**
