@@ -80,7 +80,13 @@ const DESCRIPTION = `A live, doctor-led 5-day challenge for people struggling wi
    shape for a fallback: it only fires when the env var is missing, which is
    exactly when nobody is watching, and it would have pointed metadata and
    every event_source_url at a domain that may not resolve. */
-const FALLBACK_ORIGIN = 'https://www.drpeeyushprabhat.com';
+/* Apex, no `www`, matching NEXT_PUBLIC_SITE_URL and lib/checkout-config.ts.
+   These three used to name three different origins (apex, www, and a
+   `challenge.` subdomain), which is a real reporting bug and not a tidiness
+   one: `www.` and the apex are different origins to Meta, so a fallback that
+   disagreed with the env var would have split one funnel's events across two
+   event_source_urls with nothing looking broken. */
+const FALLBACK_ORIGIN = 'https://drpeeyushprabhat.com';
 
 function resolveSiteUrl(): string {
   const raw = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();

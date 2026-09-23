@@ -99,7 +99,15 @@ export async function POST(req: Request) {
      body is the fallback rather than the other way round. See middleware.ts. */
   const edge = readAttrCookie(readRequestCookie(req, ATTR_COOKIE));
 
-  const landingUrl = truncate(body.landingUrl, 300) || truncate(edge.landingUrl, 300);
+  /* 256, NOT 300: that is Razorpay's own per-note ceiling, and `lp` is one
+     note. At 300 a landing url with a full campaign query (350 to 400 chars is
+     normal on paid social) reached the repair loop below on EVERY order, which
+     trimmed it to 256 anyway and logged a console.error while doing it. The
+     value was never wrong, but the happy path was crying wolf at error level,
+     which is how a real note failure would have gone unnoticed. Nothing is
+     lost by cutting here instead: the tail beyond 256 is the query string, and
+     every part of it that matters already rides in `utm` and `clid`. */
+  const landingUrl = truncate(body.landingUrl, 256) || truncate(edge.landingUrl, 256);
   const referrer = truncate(body.referrer, 200) || truncate(edge.referrer, 200);
   const fbclid = truncate(body.fbclid, 200) || truncate(edge.fbclid, 200);
   const utmOf = (bodyVal: string | undefined, edgeVal: string | undefined) =>

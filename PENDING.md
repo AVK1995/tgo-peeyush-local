@@ -21,28 +21,60 @@ Everything the build cannot invent. Grouped by who unblocks it.
 
 **Facts**
 - ~~Legal entity, trading name, address, phone, email, jurisdiction, effective date~~ SUPPLIED 15 Sep and in `app/_landing/legal.ts`. Two answers never came and, on Atul's instruction of 16 Sep, ship absent rather than as placeholders: the legal **structure** (the terms page omits the phrase rather than guessing, via `LEGAL_STRUCTURE_KNOWN`) and the **PIN code** on the address. Worth closing when they surface; neither blocks a launch.
-- Confirm the start date: the copy writes it once as "[30th September]" in brackets and once plain. Building against **30 September 2026**.
-- WhatsApp community invite link for the thank-you page
+- ~~Confirm the start date~~ SETTLED. `START_DATE` in `app/_landing/offer.ts` is **7th October 2026** (changed 22 Sep on Atul's instruction, from the 30 September the copy doc carried).
+- ~~WhatsApp community invite link for the thank-you page~~ SUPPLIED, `NEXT_PUBLIC_WHATSAPP_INVITE` is set.
 - Money-back guarantee terms. **Decision, not a gap.** The copy promises "100% Money-Back Guarantee" four times with no window, conditions or process anywhere, and on 16 Sep the call was to ship without them. So `app/refund-policy/page.tsx` states the promise, the request process, the method and bank timings, and has NO window section and NO exclusions section: writing either would have meant inventing a contractual term. Read as written the guarantee is **unconditional and open-ended**, which is how a buyer and a card network will read it in a dispute, and the merchant carries that. If Dr. Peeyush wants a window, answering "until when, on what conditions, how fast" puts those two sections back.
 - Related: `app/thank-you/page.tsx` carried an inherited "No refunds for missed live sessions" line that flatly contradicted the guarantee. It was removed. A second inherited line went on the finishing pass: the note under the policy block read "(Our refund policy covers the **Day One guarantee** in full.)", which was the previous funnel's refund window promised to a buyer who had just paid. It now names his own six words instead. Its two remaining policy lines ("No rescheduling to future batches", "Recordings are not guaranteed"), the three prep lines and the community-benefit list are house-standard copy, NOT from COPY-SOURCE.md, and want Dr. Peeyush's read.
 - A third inherited thank-you line, "Keep a yoga mat or soft surface ready", was cut rather than left flagged: it contradicted the "No equipment required" line at the foot of the same section AND the sales page's own "without endless yoga, gym workouts, medicines or expensive treatments". If his sessions do need a mat or a floor, say so and it goes back in, and the no-equipment line comes out with it.
 - Zoom joining detail for the thank-you page
 - The "1000+ Health Transformations" and "5.0 ★ Client Rating" claims: confirm they are real and substantiated before they go live.
 
-## Env (`.env.example` is now this project's, 14 vars, parity verified both ways)
-- `NEXT_PUBLIC_SITE_URL` (and correct the `FALLBACK_ORIGIN` literal in `app/layout.tsx`, currently the placeholder `challenge.drpeeyushprabhat.com`)
-- `NEXT_PUBLIC_PRICE_RUPEES=497`
-- `NEXT_PUBLIC_WHATSAPP_INVITE`
-- Meta pixel id (twice) + CAPI token, GA4 measurement id + API secret, Clarity tag
-- `PABBLY_WEBHOOK_URL`
-- **PAYMENTS ARE BUILT, ON RAZORPAY, AND UNCONFIGURED.** Instamojo is gone from this codebase (both libs, all three routes, the config block, the redirect flow and `INSTAMOJO-API.md` were deleted, and nothing imports them). Three values are needed: `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` from Account & Settings -> API Keys, and `RAZORPAY_WEBHOOK_SECRET`, which is a SEPARATE value you choose when registering the webhook. All three are present but blank in `.env.local`.
-- **The webhook has to be registered in the dashboard.** Settings -> Webhooks -> Add New Webhook. URL `<NEXT_PUBLIC_SITE_URL>/api/razorpay/webhook`, active event `payment.captured` and nothing else, secret pasted into `RAZORPAY_WEBHOOK_SECRET`. Skip it and the site takes money perfectly happily while reporting no sale to Meta, GA4 or Pabbly.
-- The `kz_` order-receipt prefix is **fixed, not inherited**: it is `dpp_` and the notes `kind` is `peeyush_5day_health_reset`. The browser storage keys were already `pp_*`.
-- The payment sheet has **no logo**, because `public/brand/peeyush-square.jpg` does not exist and a missing file renders a broken tile inside Razorpay's iframe. Upload a logo in the Razorpay dashboard, or drop that file in and restore the commented `image:` line in `app/checkout/page.tsx`. The sheet's business name is set to "Dr. Peeyush Prabhat" and should match the name on the Razorpay account.
-- `app/_landing/offer.ts` (SHAPE's file, left untouched) still carries a doc comment saying the gateway charges in rupees and that a paise figure would be a hundred times too large. That was Instamojo's rule. Razorpay charges in paise and `lib/checkout-config.ts` derives it from `PRICE_RUPEES`. Comment only, nothing is broken, but it will mislead the next reader.
-- Remove `META_CAPI_TEST_EVENT_CODE` before real spend.
+## Env and payments · CLOSED 23 Sep 2026
 
-The full, project-specific launch list is the closing block of `.env.example`.
+**Nothing here is outstanding.** All eleven values in `.env.local` are set:
+site url, price, WhatsApp invite, the three Razorpay values, the Meta pixel id
+(twice) and CAPI token, both GA4 keys, Clarity, and the Pabbly webhook url.
+Razorpay is configured and the webhook is registered.
+
+`META_CAPI_TEST_EVENT_CODE` is deliberately blank, which is what live means.
+
+**The origin was wrong and is fixed (23 Sep).** `NEXT_PUBLIC_SITE_URL` read
+`http://drpeeyushprabhat.com/`: http rather than https, with a trailing slash.
+It reaches Meta as `event_source_url` on the server-side Purchase, so it
+disagreed with the origin every browser event reported, on the one event where
+matching is worth the most. The trailing slash also made the Pabbly
+`event_source_url` come out as `//checkout`. Two hardcoded fallbacks named two
+further origins (`www.` in `app/layout.tsx`, `challenge.` in
+`lib/checkout-config.ts`). All three now read `https://drpeeyushprabhat.com`,
+and `checkout-config.ts` strips a trailing slash rather than trusting one is
+absent.
+
+**The data layer was rebuilt 22 Sep and this funnel is the reference for it.**
+The order notes are flat, one key per field, fourteen of Razorpay's fifteen;
+`middleware.ts` captures attribution at the edge so in-app-browser traffic
+still reports; `create-order` reads `_fbc`, `_fbp` and the attribution cookie
+off its own request; the webhook gates on `notes.kind` and takes the timestamp,
+email and phone from Razorpay's payload. Measured at full caps, every note key
+fits inside 256 characters and one oversized value can no longer blank the
+others. The spec is `~/.claude/system/funnel-commerce.md`.
+
+Still worth doing once, and neither can be proven from the code:
+
+- **One live payment from a phone, through an ad link carrying UTMs and
+  `fbclid`**, to confirm the edge cookie and the cookie reads fire in a real
+  Instagram in-app browser.
+- **Pabbly field mapping.** Three `is_test: true` samples were posted on 22 Sep
+  and returned 200. Map the fields, `dial_code` is the new one, then send one
+  `is_test: false` run.
+
+Two comment-only leftovers, nothing broken:
+
+- `app/_landing/offer.ts` (SHAPE's file) still says the gateway charges in
+  rupees. That was Instamojo's rule; Razorpay charges in paise and
+  `lib/checkout-config.ts` derives it.
+- The payment sheet has no logo, because `public/brand/peeyush-square.jpg` does
+  not exist. Upload one in the Razorpay dashboard, or drop that file in and
+  restore the commented `image:` line in `app/checkout/page.tsx`.
 
 ## Copy decisions waiting on you (flagged by SHAPE, built verbatim)
 1. "Price Increases To ₹1599 Tomorrow" cannot run evergreen. The page goes live now for a 30 Sep cohort, so "tomorrow" is untrue for seventeen days. Needs a real dated deadline or a NO-BRAINER re-word.

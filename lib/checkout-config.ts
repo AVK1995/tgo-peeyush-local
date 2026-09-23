@@ -57,9 +57,14 @@ export const CHECKOUT_CONFIG = {
      `||`, not `??`. A host that defines the key with a blank value yields an
      empty string, which `??` passes straight through, and an empty
      event_source_url is silently worthless to Meta. */
+     A TRAILING SLASH IS STRIPPED HERE, not trusted to be absent. The webhook
+     builds the Pabbly url as `${fallbackEventSourceUrl}/checkout`, so a value
+     ending in `/` produced `//checkout` on every single sale. Meta never
+     showed it, because originOnly() throws the path away, so the only place
+     it surfaced was the one system nobody was watching the url in. */
   fallbackEventSourceUrl:
-    (process.env.NEXT_PUBLIC_SITE_URL || '').trim() ||
-    'https://challenge.drpeeyushprabhat.com',
+    ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() ||
+      'https://drpeeyushprabhat.com').replace(/\/+$/, ''),
   meta: {
     pixelId: process.env.META_PIXEL_ID ?? '',
     accessToken: process.env.META_CAPI_ACCESS_TOKEN ?? '',
