@@ -55,37 +55,6 @@ const dmSans = DM_Sans({
 
 const DESCRIPTION = `A live, doctor-led 5-day challenge for people struggling with chronic pain, stress and lifestyle health concerns. Five sessions with Dr. Peeyush Prabhat on breathing, energy, the nervous system and emotional load. Starts ${START_DATE}, ${SESSION_TIMES}, live on Zoom, for ${PRICE}.`;
 
-/* The live origin. Without a metadataBase Next resolves every share URL and
-   every relative OG asset against localhost, so a link pasted into WhatsApp
-   previews as a dead local address.
-
-   This is deliberately defensive, because metadataBase is evaluated at BUILD
-   time on every route including the generated /_not-found. A bad value here
-   does not degrade the page, it fails the deploy:
-
-     `??` does NOT catch an empty string. A host that defines the variable with
-     a blank value (Vercel does exactly this when the key is added without one)
-     gives new URL('') and ERR_INVALID_URL, which is what broke the build.
-
-   So: fall back on any falsy value rather than only on null, add the protocol
-   if someone pastes a bare domain, and if it still will not parse, use the
-   literal rather than throwing. */
-/* ⚠️ PLACEHOLDER ORIGIN. The real domain for this funnel has not been given
-   yet. It is only ever used when NEXT_PUBLIC_SITE_URL is unset or unparseable,
-   but if it is still this string on launch day every share preview and the
-   canonical URL point at a domain nobody owns. Set the env var, then correct
-   this literal in the same pass. */
-/* Matched to the NEXT_PUBLIC_SITE_URL now in .env.local (17 Sep). It was a
-   guessed subdomain while the real one was unknown, which is the dangerous
-   shape for a fallback: it only fires when the env var is missing, which is
-   exactly when nobody is watching, and it would have pointed metadata and
-   every event_source_url at a domain that may not resolve. */
-/* Apex, no `www`, matching NEXT_PUBLIC_SITE_URL and lib/checkout-config.ts.
-   These three used to name three different origins (apex, www, and a
-   `challenge.` subdomain), which is a real reporting bug and not a tidiness
-   one: `www.` and the apex are different origins to Meta, so a fallback that
-   disagreed with the env var would have split one funnel's events across two
-   event_source_urls with nothing looking broken. */
 const FALLBACK_ORIGIN = 'https://drpeeyushprabhat.com';
 
 function resolveSiteUrl(): string {
