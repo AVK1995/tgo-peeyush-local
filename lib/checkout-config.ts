@@ -56,7 +56,8 @@ export const CHECKOUT_CONFIG = {
 
      `||`, not `??`. A host that defines the key with a blank value yields an
      empty string, which `??` passes straight through, and an empty
-     event_source_url is silently worthless to Meta. */
+     event_source_url is silently worthless to Meta.
+
      A TRAILING SLASH IS STRIPPED HERE, not trusted to be absent. The webhook
      builds the Pabbly url as `${fallbackEventSourceUrl}/checkout`, so a value
      ending in `/` produced `//checkout` on every single sale. Meta never
