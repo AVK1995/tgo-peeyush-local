@@ -28,11 +28,18 @@ const CRITICAL = [
   'email',
   'phone',
   'city',
+  'country_code',
   'payment_id',
   'order_id',
   'amount',
-  'payment_method',
-  'context_recovered',
+  'lead_id',
+  /* The campaign half. These are the ones that went blank together when the
+     old chunked note blob overflowed, so they are the regression canary. */
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'landing_url',
+  'client_user_agent',
 ];
 
 const GREEN = '\u001b[32m';

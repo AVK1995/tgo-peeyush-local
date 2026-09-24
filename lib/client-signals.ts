@@ -63,7 +63,6 @@ export function readUtm() {
     campaign: pick(a.utmCampaign),
     content: pick(a.utmContent),
     term: pick(a.utmTerm),
-    id: pick(a.utmId),
   };
 }
 
@@ -100,14 +99,5 @@ export function collectSignals() {
     fbclid: a.fbclid,
     referrer: a.referrer,
     landingUrl: a.landingUrl,
-    /* The Meta ad identifiers, captured on first landing alongside the UTMs.
-       Flat rather than nested under `utm`, because they are not UTMs: they are
-       Ads Manager's own keys and they are what a Pabbly row is joined to a
-       reported conversion by. */
-    adId: a.adId,
-    adsetId: a.adsetId,
-    campaignId: a.campaignId,
-    placement: a.placement,
-    siteSourceName: a.siteSourceName,
   };
 }

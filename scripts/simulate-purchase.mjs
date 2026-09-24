@@ -100,11 +100,10 @@ if (!secret) die('RAZORPAY_WEBHOOK_SECRET is empty in .env.local.');
 /* A buyer who arrived from a Meta ad with every parameter populated, so that
    an empty column in the output means a bug and never "nothing was sent". */
 const landing =
-  'http://localhost:3000/?utm_source=facebook&utm_medium=paid_social' +
-  '&utm_campaign=health_reset_oct&utm_content=carousel_v3&utm_term=weight_loss' +
-  '&utm_id=120209876543210' +
-  '&ad_id=120210000000001&adset_id=120210000000002&campaign_id=120210000000003' +
-  '&placement=Instagram_Stories&site_source_name=ig' +
+  'http://localhost:3000/?utm_source=instagram_reels' +
+  '&utm_medium=Health_Reset_Oct_Prospecting' +
+  '&utm_campaign=Postpartum_Women_25_44_Broad' +
+  '&utm_content=Carousel_MummyBelly_V3&utm_term=120210000000001' +
   '&fbclid=IwAR3TESTfbclidvalueforlocaltesting1234567890abcdef';
 
 const buyer = {
@@ -122,18 +121,20 @@ const buyer = {
   fbclid: 'IwAR3TESTfbclidvalueforlocaltesting1234567890abcdef',
   referrer: 'https://l.facebook.com/',
   landingUrl: landing,
-  adId: '120210000000001',
-  adsetId: '120210000000002',
-  campaignId: '120210000000003',
-  placement: 'Instagram_Stories',
-  siteSourceName: 'ig',
+  dialCode: '+91',
+  /* TGO's OWN convention, not the standard one — the ad urls are built with
+     Meta's dynamic parameters mapped like this, so the values here are sized
+     like real ones (campaign and ad NAMES run long) rather than like the
+     "facebook / paid_social" examples that the caps were never meant for:
+       utm_source = {{placement}}, utm_medium = {{campaign.name}},
+       utm_campaign = {{adset.name}}, utm_term = {{ad.id}},
+       utm_content = {{ad.name}} */
   utm: {
-    source: 'facebook',
-    medium: 'paid_social',
-    campaign: 'health_reset_oct',
-    content: 'carousel_v3',
-    term: 'weight_loss',
-    id: '120209876543210',
+    source: 'instagram_reels',
+    medium: 'Health_Reset_Oct_Prospecting',
+    campaign: 'Postpartum_Women_25_44_Broad',
+    content: 'Carousel_MummyBelly_V3',
+    term: '120210000000001',
   },
 };
 

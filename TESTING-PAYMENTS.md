@@ -10,24 +10,28 @@ The Pabbly webhook was arriving with almost every field blank — no
 `created_at`, no name, no city, no UTMs, no fbc/fbp, no IP. Only email, phone
 and amount survived.
 
-**Cause.** The buyer context is written into the Razorpay **order's** `notes`
-at create-order time. The webhook was reading `payload.payment.entity.notes` —
-the **payment's** notes. Those are two different fields on two different
-entities, and Razorpay does not copy one to the other. Razorpay's docs are
-explicit that the `payment.captured` payload "only contains the payment
-entity", and its sample shows `"notes": []`.
+**Cause.** The context was serialised into one JSON blob and sliced across ten
+note keys, `x0`..`x9`. When the blob overflowed ten chunks the packer ended
+with `chunks.slice(0, 10)`, which cuts the JSON mid-token. The webhook's
+`JSON.parse` then threw, the handler fell back to an empty context, and **all
+twenty fields went blank together**. One long campaign name was enough. Email,
+phone and amount survived only because those are read off the payment entity
+directly rather than out of the notes.
 
-So `unpackContext` was parsing an empty array on every single sale, and
-returning a blank context. Email, phone and amount came through only because
-those are fields on the payment itself — which is exactly why it looked like a
-partial failure rather than a lookup in the wrong place.
+**Fix** (upstream, 22 Sep 2026). The chunked blob is gone. Each signal is now
+its own note key — fourteen against Razorpay's limit of fifteen — so an
+oversized value can only ever cost its own field instead of taking the whole
+record down with it. The two small bundles that remain (`cust`, `utm`, `meta`)
+are kept valid by `packJsonNote`, which shortens the longest *value* rather
+than cutting the finished JSON. See `app/api/razorpay/create-order/route.ts`.
 
-**Fix.** The webhook now fetches the order back from Razorpay by id and reads
-the notes from there (`lib/razorpay-order.ts`). That is authoritative, cannot
-be forged from the browser, and works under either webhook event.
-
-The payload also now carries a `context_recovered` boolean. **If that is ever
-`false`, this bug is back** — branch a Pabbly router on it if you want an alert.
+> **A correction worth recording.** This was first diagnosed here as the
+> webhook reading the *payment's* notes rather than the *order's*, on the
+> strength of Razorpay's docs showing `"notes": []` in the `payment.captured`
+> sample. That sample is generic: in practice the order's notes do reach the
+> payment entity, which is why the one-field-per-key fix works without any
+> extra lookup. A `lib/razorpay-order.ts` that fetched the order back by id was
+> written against the wrong premise and has been removed.
 
 ### The wrong email (fixed 21 Sep 2026)
 
@@ -99,9 +103,7 @@ rejects anything under 100 paise.
 > do it through the sheet by hand and refund it from the dashboard.
 
 The key id must start with `rzp_test_`. `is_test` on the payload is derived
-from that prefix, so there is no separate flag to remember. **Test keys cannot
-read an order created by live keys** — mixing them is the one way to see
-`context_recovered: false` on an otherwise healthy setup.
+from that prefix, so there is no separate flag to remember.
 
 > Restart the dev server after editing `.env.local`. Next.js reads it at boot.
 
@@ -121,21 +123,22 @@ npm run test:purchase    # 3. runs the test
 full context packed into its notes, then signs and delivers the exact
 `payment.captured` event Razorpay would send for it.
 
-That means the order fetch in step 3 is a real authenticated call against a
-real order — which is the precise round trip that was broken, so this is a
-genuine test and not a mock. Only the payment ID is invented.
+The order in step 1 genuinely exists in your Razorpay test account, with the
+context written into its notes exactly as a real buyer's would be — so the
+packing and unpacking being tested is the real thing, not a hand-written
+fixture. Only the payment ID is invented.
 
 The echo terminal prints a **PASS/FAIL** line and flags any empty critical
-field. Expect ~57 populated fields.
+field.
 
 In the dev server log, look for:
 
 ```
-[rzp-webhook] pay_xxx Purchase capi=… ga4=… pabbly=true ctx=ok method=upi amount=1
+[rzp-webhook] pay_xxx Purchase capi=… ga4=… pabbly=true notes=ok
 ```
 
-**`ctx=ok` is the thing to check.** `ctx=MISSING` means the context was not
-recovered and an error line will say why.
+**`notes=ok` is the thing to check.** `notes=EMPTY` means the buyer context did
+not survive the order notes — the failure this whole pass was about.
 
 ---
 
@@ -159,8 +162,22 @@ Then:
    attribute — this matters, because the UTMs are captured on *first landing*
    and read back at checkout:
 
+TGO's ad URLs use a **non-standard UTM convention** — read
+`app/api/razorpay/create-order/route.ts` before changing any cap, because three
+of the five carry Meta *names* that run to 40–60 characters:
+
+| Parameter | Carries |
+|---|---|
+| `utm_source` | `{{placement}}` — e.g. `instagram_reels` |
+| `utm_medium` | `{{campaign.name}}` |
+| `utm_campaign` | `{{adset.name}}` |
+| `utm_term` | `{{ad.id}}` — the numeric id |
+| `utm_content` | `{{ad.name}}` |
+
+So a representative test URL is:
+
 ```
-<tunnel-url>/?utm_source=facebook&utm_medium=paid_social&utm_campaign=test_oct&utm_content=ad_v1&utm_id=120209876543210&ad_id=120210000000001&adset_id=120210000000002&campaign_id=120210000000003&placement=Instagram_Stories&site_source_name=ig&fbclid=IwARtest123
+<tunnel-url>/?utm_source=instagram_reels&utm_medium=Health_Reset_Oct_Prospecting&utm_campaign=Postpartum_Women_25_44_Broad&utm_term=120210000000001&utm_content=Carousel_MummyBelly_V3&fbclid=IwARtest123
 ```
 
 4. Click through to checkout, fill the form, pay ₹1 with Razorpay's test
@@ -173,7 +190,8 @@ It fires on the same sale and looks like the better choice because its payload
 includes the order. But:
 
 - registering it **instead of** `payment.captured` means nothing fires at all —
-  the route ignores it and logs a warning;
+  the route ignores every other event type and answers 200, so the delivery log
+  looks healthy while no sale is ever reported;
 - registering it **as well** double-fires the Pabbly hand-off and you get two
   rows and two WhatsApp invites per buyer.
 
@@ -183,25 +201,23 @@ Meta and GA4 are safe either way (both dedupe on the payment id). Pabbly is not.
 
 ## 4. What should be populated
 
-**Always:** `created_at`, `paid_at`, `first_name`, `last_name`, `email`,
-`phone`, `city`, `country_code`, `amount`, `amount_paise`, `currency`,
-`payment_id`, `order_id`, `order_receipt`, `payment_method`, `payment_status`,
-`payment_captured`, `lead_id`, `product`, `occupation`, `is_test`,
-`context_recovered`, `webhook_event`, `webhook_received_at`.
+**Always:** `created_at`, `first_name`, `last_name`, `email`, `payment_email`,
+`phone`, `dial_code`, `city`, `country_code`, `amount`, `currency`,
+`payment_id`, `order_id`, `lead_id`, `product`, `occupation`, `is_test`,
+`type`, `event`, `purchase_event_id`, `event_source_url`.
 
 **From a Meta ad click:** `utm_source`, `utm_medium`, `utm_campaign`,
-`utm_content`, `utm_term`, `utm_id`, `fbclid`, `fbc`, `fbp`, `ad_id`,
-`adset_id`, `campaign_id`, `placement`, `site_source_name`, `referrer`,
-`landing_url`, `external_id`, `ga_client_id`, `client_ip_address`,
-`client_user_agent`.
+`utm_content`, `utm_term`, `fbclid`, `fbc`, `fbp`, `referrer`, `landing_url`,
+`external_id`, `client_ip_address`, `client_user_agent`.
 
-**Method-dependent, empty is correct:** `card_last4` / `card_network` /
-`card_type` / `card_issuer` / `card_id` are card-only; `payment_vpa` /
-`upi_transaction_id` are UPI-only; `payment_bank` is netbanking; `error_code` /
-`error_description` are empty on a successful capture.
+`created_at` is Razorpay's own `payment.created_at` — the moment of capture,
+not of form submission. It can no longer be lost, because nothing has to carry
+it through the notes.
 
-`razorpay_fee` and `razorpay_tax` are in **rupees** (converted from paise, to
-match `amount`) and may be `0` until Razorpay computes them.
+`email` is what the buyer typed on **our** checkout; `payment_email` is what
+Razorpay had on file. They should usually match — when they don't, the server
+log carries an `email differs:` warning and the form's value is what
+fulfilment uses.
 
 ### Re-train the Pabbly field mapper
 

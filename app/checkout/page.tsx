@@ -224,6 +224,11 @@ export default function CheckoutPage() {
           lastName: f.lastName.trim(),
           email: f.email.trim(),
           phone: e164,
+          /* Sent SEPARATELY as well as being folded into e164 above. Once the
+             two are concatenated there is no reliable way to split them back
+             apart: +1 and +91 both start with a 1, so a leading-digits guess
+             gets it wrong for exactly the countries that share a prefix. */
+          dialCode: dial,
           city: f.city.trim(),
           country: f.country,
           occupation: f.occupation,

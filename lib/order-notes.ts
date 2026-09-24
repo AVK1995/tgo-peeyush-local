@@ -40,6 +40,11 @@ export type OrderContext = {
   firstName: string;
   lastName: string;
   city: string;
+  /* "+91". Carried apart from the number because `phone` reaches Pabbly as
+     full E.164 and the code cannot be split back out of it: +1 and +91 both
+     begin with a 1, so any leading-digit guess is wrong for the countries
+     that share a prefix. */
+  dialCode: string;
   country: string; // ISO 3166-1 alpha-2, lowercase
   occupation: string;
   externalId: string;
@@ -53,24 +58,9 @@ export type OrderContext = {
   utmCampaign: string;
   utmContent: string;
   utmTerm: string;
-  utmId: string;
   fbclid: string;
   referrer: string;
   landingUrl: string;
-  /* ── Meta's own ad identifiers ──────────────────────────────────────────
-     Meta can substitute these into the destination url via its dynamic
-     parameters ({{ad.id}}, {{adset.id}}, {{campaign.id}}, {{placement}},
-     {{site_source_name}}). They are carried SEPARATELY from the UTMs because
-     they are the ids Ads Manager is keyed on: a utm_campaign is whatever the
-     media buyer typed, and it changes when the campaign is renamed, whereas
-     campaign_id is stable and joins a Pabbly row to an Ads Manager row
-     without a lookup table. Empty for every non-Meta visitor, which costs
-     nothing: empty fields are stripped before packing. */
-  adId: string;
-  adsetId: string;
-  campaignId: string;
-  placement: string;
-  siteSourceName: string;
 };
 
 export const EMPTY_CONTEXT: OrderContext = {
@@ -78,6 +68,7 @@ export const EMPTY_CONTEXT: OrderContext = {
   firstName: '',
   lastName: '',
   city: '',
+  dialCode: '',
   country: '',
   occupation: '',
   externalId: '',
@@ -91,15 +82,9 @@ export const EMPTY_CONTEXT: OrderContext = {
   utmCampaign: '',
   utmContent: '',
   utmTerm: '',
-  utmId: '',
   fbclid: '',
   referrer: '',
   landingUrl: '',
-  adId: '',
-  adsetId: '',
-  campaignId: '',
-  placement: '',
-  siteSourceName: '',
 };
 
 const CHUNK_SIZE = 256;
@@ -139,15 +124,6 @@ const OTHER_CAPS: Partial<Record<keyof OrderContext, number>> = {
   utmCampaign: 100,
   utmContent: 100,
   utmTerm: 100,
-  utmId: 100,
-  /* Meta ids are numeric strings around 15-17 digits; 32 is double the room
-     they need and still cheap. `placement` and `site_source_name` are short
-     enums ("Facebook_Mobile_Feed", "an", "ig"). */
-  adId: 32,
-  adsetId: 32,
-  campaignId: 32,
-  placement: 48,
-  siteSourceName: 32,
 };
 
 function applyCaps(ctx: OrderContext): OrderContext {
@@ -198,63 +174,8 @@ export function packContext(ctx: OrderContext): Record<string, string> {
     chunks = chunk(serialise(working));
   }
 
-  /* ── THE LAST RESORT, AND WHY IT IS NOT A `slice` ──────────────────────
-     This used to end with `chunks.slice(0, MAX_CHUNKS)`, which is a silent
-     data-loss bug of the worst kind: slicing a chunked JSON string cuts it
-     mid-token, so `unpackContext` cannot parse it and falls back to
-     EMPTY_CONTEXT. The order is accepted, the payment succeeds, and the
-     fulfilment row arrives completely blank — the failure looks like the one
-     that was just fixed, with no log line anywhere saying so.
-
-     So if the sacrificial fields were not enough, keep dropping REAL fields,
-     worst-value-per-byte first, and re-serialise each time. What survives to
-     the end is the minimum that still identifies a buyer and their campaign.
-     Dropping a field loses one column; emitting a truncated blob loses all
-     of them. */
-  const LAST_RESORT: Array<keyof OrderContext> = [
-    'siteSourceName',
-    'placement',
-    'gaCid',
-    'utmTerm',
-    'utmContent',
-    'utmId',
-    'adsetId',
-    'adId',
-    'campaignId',
-    'fbp',
-    'fbc',
-    'externalId',
-    'utmMedium',
-    'utmSource',
-    'occupation',
-    'city',
-  ];
-  for (const k of LAST_RESORT) {
-    if (chunks.length <= MAX_CHUNKS) break;
-    working[k] = '';
-    chunks = chunk(serialise(working));
-  }
-
-  if (chunks.length > MAX_CHUNKS) {
-    /* Unreachable with the caps above (the irreducible core is ~350 chars
-       against 2,560 of carrier), but asserted rather than assumed, because
-       the cost of being wrong is a blank fulfilment row. */
-    console.error(
-      `[order-notes] context will not fit in ${MAX_CHUNKS} chunks, ` +
-        `needed ${chunks.length}; falling back to identity only`,
-    );
-    chunks = chunk(
-      JSON.stringify({
-        createdAt: working.createdAt,
-        firstName: working.firstName,
-        lastName: working.lastName,
-        country: working.country,
-      }),
-    );
-  }
-
   const notes: Record<string, string> = {};
-  chunks.forEach((c, i) => {
+  chunks.slice(0, MAX_CHUNKS).forEach((c, i) => {
     notes[`x${i}`] = c;
   });
   return notes;
@@ -284,4 +205,78 @@ export function unpackContext(notes: Record<string, unknown>): OrderContext {
        inside a webhook that must return 200 or be retried. */
     return { ...EMPTY_CONTEXT };
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   READING AN ORDER BACK, IN EITHER SHAPE (2026-09-22)
+   ----------------------------------------------------------------------
+   create-order now writes ONE KEY PER FIELD (`fbc`, `ip`, `ua`, `lp`, `ref`,
+   `clid`, plus two small `packJsonNote` bundles, `cust` and `utm`). The old
+   shape above serialised everything into one JSON string sliced across
+   `x0`..`x9`, which fails all-or-nothing: the slice cuts mid-string, the
+   parse throws, and every field comes back empty together.
+
+   BOTH SHAPES HAVE TO BE READABLE, because an order created before the
+   deploy can be paid after it. A UPI collect request can sit in a bank app
+   for minutes, and a buyer who was mid-checkout when this shipped must not
+   lose their record. So: new shape if its keys are present, old shape
+   otherwise, and the old path can be deleted once no unpaid orders predate
+   the deploy.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
+function readBundle(raw: unknown): Record<string, string> {
+  const s = str(raw);
+  if (!s) return {};
+  try {
+    const parsed = JSON.parse(s) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+  } catch {
+    /* packJsonNote guarantees valid JSON, so this only fires on a note written
+       by something else. An empty bundle costs those fields, never the rest. */
+  }
+  return {};
+}
+
+export function readOrderContext(notes: Record<string, unknown>): OrderContext {
+  /* The old blob had no `cust`; the new shape always writes one, even when it
+     packs down to `{}`. Either marker being present means the new writer. */
+  const isNew = notes.cust != null || notes.lp != null || notes.clid != null;
+  if (!isNew) return unpackContext(notes);
+
+  const cust = readBundle(notes.cust);
+  const meta = readBundle(notes.meta);
+  const utm = readBundle(notes.utm);
+
+  return {
+    /* Always '' on the new shape: create-order stopped writing a timestamp on
+       2026-09-22 and the webhook takes the date from Razorpay's own
+       `payment.created_at` instead. The field stays on the type because the
+       OLD chunked shape still carries one, and an order created before that
+       deploy can still be paid after it. */
+    createdAt: str(meta.cd),
+    firstName: str(cust.fn),
+    lastName: str(cust.ln),
+    city: str(cust.ct),
+    dialCode: str(cust.dl),
+    country: str(cust.co),
+    occupation: str(meta.oc),
+    externalId: str(meta.xid),
+    gaCid: str(meta.ga),
+    fbc: str(notes.fbc),
+    fbp: str(notes.fbp),
+    clientIp: str(notes.ip),
+    clientUserAgent: str(notes.ua),
+    utmSource: str(utm.s),
+    utmMedium: str(utm.m),
+    utmCampaign: str(utm.c),
+    utmContent: str(utm.n),
+    utmTerm: str(utm.t),
+    fbclid: str(notes.clid),
+    referrer: str(notes.ref),
+    landingUrl: str(notes.lp),
+  };
 }

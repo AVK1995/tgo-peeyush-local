@@ -5,30 +5,8 @@ import { NextResponse } from 'next/server';
 import { CHECKOUT_CONFIG, capiReady, isTestMode } from '@/lib/checkout-config';
 import { ga4ServerReady, sendGa4Purchase } from '@/lib/ga4-server';
 import { sendCapiEvent, type Occupation } from '@/lib/meta-capi';
-import { unpackContext } from '@/lib/order-notes';
+import { readOrderContext } from '@/lib/order-notes';
 import { pabblyReady, sendPabblyPurchase } from '@/lib/pabbly';
-import {
-  asNotes,
-  fetchRazorpayOrder,
-  hasPackedContext,
-} from '@/lib/razorpay-order';
-
-/** Razorpay timestamps are unix SECONDS. `new Date(n)` would read them as
- *  milliseconds and date every sale to January 1970. */
-const isoFromUnix = (v: unknown): string => {
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0) return '';
-  return new Date(n * 1000).toISOString();
-};
-
-const str = (v: unknown): string => (v == null ? '' : String(v));
-
-/** Razorpay reports money in paise. Every rupee figure on the payload is this
- *  division and nothing else, so no two of them can disagree. */
-const paiseToRupees = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n / 100 : 0;
-};
 
 /**
  * Razorpay webhook, and the ONLY place a Purchase is reported.
@@ -78,89 +56,68 @@ export async function POST(req: Request) {
 
   const parsed = JSON.parse(raw);
   if (parsed.event !== 'payment.captured') {
-    /* Razorpay sends many event types; only a captured payment is a Purchase.
-       `order.paid` is called out by name because it is the plausible-looking
-       wrong choice: it fires on the same sale and carries the order entity,
-       so registering it INSTEAD of payment.captured leaves a site that takes
-       money and reports nothing, with a 200 in the delivery log. Registering
-       it AS WELL would double every Pabbly row. */
-    if (parsed.event === 'order.paid') {
-      console.warn(
-        '[rzp-webhook] order.paid received and ignored. This route handles ' +
-          'payment.captured only; register that event in Settings -> Webhooks.',
-      );
-    }
+    // Razorpay sends many event types; only a captured payment is a Purchase.
     return NextResponse.json({ ok: true, ignored: parsed.event });
   }
 
-  const receivedAt = new Date().toISOString();
   const payment = parsed.payload?.payment?.entity ?? {};
+  const notes = payment.notes ?? {};
+
+  /* ── IS THIS SALE EVEN OURS? (2026-09-22) ──────────────────────────────
+     A signature check proves the call came from Razorpay. It does NOT prove
+     the payment came from THIS checkout.
+
+     Razorpay registers webhooks per URL on an ACCOUNT and sends every
+     subscribed event to every registered URL. So this endpoint receives every
+     captured payment on the account: a second funnel sharing it, a payment
+     link created by hand in the dashboard, an invoice, a renewal. Every one
+     of those was being reported as a sale of this challenge, with a Purchase
+     to Meta, a purchase to GA4 and a buyer row to the fulfilment hand-off.
+
+     `notes.kind` is this funnel's mark, written on the order at create time.
+     No mark, or someone else's mark, means the payment is not ours.
+
+     200, NOT an error. A non-200 makes Razorpay retry the same foreign
+     payment on a schedule for hours. This is a correct, final "not mine". */
+  const kind = String(notes.kind ?? '');
+  if (kind !== CHECKOUT_CONFIG.orderKind) {
+    console.warn(
+      `[rzp-webhook] ignored payment ${String(payment.id ?? '')}: kind="${kind || 'none'}", expected "${CHECKOUT_CONFIG.orderKind}"`,
+    );
+    return NextResponse.json({ ok: true, ignored: 'not-this-funnel' });
+  }
+
   const paymentId = String(payment.id ?? '');
   const orderId = String(payment.order_id ?? '');
-  const amountRupees = paiseToRupees(payment.amount);
+  const amountRupees = Number(payment.amount ?? 0) / 100;
+
+  /* ── THE TIMESTAMP IS RAZORPAY'S (2026-09-22, Atul) ────────────────────
+     `payment.created_at` is the moment the money was captured, in Unix
+     seconds, and it arrives on this payload. Nothing has to carry it.
+
+     It replaces a timestamp we used to mint at create-order and ferry through
+     the order notes. That one meant "when the buyer submitted the form",
+     which for a UPI payer can be minutes earlier, so the two are not the same
+     instant. Atul's call is that the capture time is the one the record
+     should carry, and the practical gain is that it can no longer be lost:
+     a note that fails to pack cannot take the sale's date with it.
+
+     Fallback to now() only if Razorpay ever omits it, so the field is never
+     empty on a row that definitely represents a real payment. */
+  const capturedAt = Number(payment.created_at ?? 0);
+  const createdAt = Number.isFinite(capturedAt) && capturedAt > 0
+    ? new Date(capturedAt * 1000).toISOString()
+    : new Date().toISOString();
 
   const valueRupees = amountRupees || CHECKOUT_CONFIG.amountRupees;
 
-  /* ── RECOVERING THE BUYER CONTEXT ──────────────────────────────────────
-     This block is the fix for "the webhook arrives empty".
-
-     It used to be one line: `unpackContext(payment.notes)`. That reads the
-     PAYMENT's notes, and the buyer context was written to the ORDER's notes.
-     They are different fields on different entities, and Razorpay does not
-     copy one to the other. The `payment.captured` payload contains only the
-     payment entity, whose `notes` is `[]` on every sale this site has ever
-     taken, so `unpackContext` parsed nothing and returned EMPTY_CONTEXT:
-     blank created_at, blank name, blank city, blank UTMs, blank fbc/fbp,
-     blank IP, blank user agent. Email, phone and amount still arrived,
-     because those are fields on the payment itself, which is why it looked
-     like a partial failure rather than a lookup in the wrong place.
-
-     Three sources, in descending order of trust:
-       1. an order entity delivered inline (only `order.paid` does this);
-       2. the order fetched back from Razorpay by id — the normal path;
-       3. the payment's own notes, for the hand-created payment or a future
-          flow that sets them.
-     See lib/razorpay-order.ts. */
-  const inlineOrder = parsed.payload?.order?.entity ?? null;
-  let order = inlineOrder as Record<string, unknown> | null;
-  let orderNotes = asNotes(order?.notes);
-
-  if (!hasPackedContext(orderNotes) && orderId) {
-    const fetched = await fetchRazorpayOrder(
-      orderId,
-      CHECKOUT_CONFIG.razorpay.keyId,
-      CHECKOUT_CONFIG.razorpay.keySecret,
-    );
-    if (fetched) {
-      order = fetched as unknown as Record<string, unknown>;
-      orderNotes = asNotes(fetched.notes);
-    }
-  }
-
-  const paymentNotes = asNotes(payment.notes);
-  const notes = hasPackedContext(orderNotes) ? orderNotes : paymentNotes;
-  const contextRecovered = hasPackedContext(notes);
-
-  const ctx = unpackContext(notes);
+  /* Everything the browser knew, written into the order at create time and
+     unpacked here. This is the ONLY route back to the buyer's own IP, user
+     agent, campaign and landing page: this request came from Razorpay, so its
+     own headers describe Razorpay. */
+  const ctx = readOrderContext(notes);
 
   const country = ctx.country || 'in';
-
-  /* ── The payment entity, unpacked ──────────────────────────────────────
-     Read defensively throughout: `card` is present only for card payments,
-     `acquirer_data` only once the acquirer has responded, and reading a
-     property off an absent object is the one way this route can throw after
-     the signature check has already passed. */
-  const card = (payment.card ?? {}) as Record<string, unknown>;
-  const acquirer = (payment.acquirer_data ?? {}) as Record<string, unknown>;
-
-  const paidAt = isoFromUnix(payment.created_at);
-  const orderCreatedAt = isoFromUnix(order?.created_at);
-
-  /* `created_at` means "when the buyer submitted their details", and it comes
-     from the order notes. The fallbacks exist so this column is NEVER blank
-     again: an order placed before this fix, or one whose context could not be
-     recovered, still dates to the order rather than to nothing at all. */
-  const createdAt = ctx.createdAt || orderCreatedAt || paidAt || receivedAt;
 
   /* Validated against the two known answers rather than passed through: this
      value reaches Meta's custom_data, which is unhashed and is read when a
@@ -170,49 +127,43 @@ export async function POST(req: Request) {
     ctx.occupation === 'working_professional' || ctx.occupation === 'homemaker'
       ? ctx.occupation
       : undefined;
-  /* ── WHOSE EMAIL AND PHONE WIN ─────────────────────────────────────────
-     This used to read `payment.email` and `payment.contact` on the reasoning
-     that "Razorpay is the authority: it holds what the buyer actually paid
-     with". That reasoning is wrong for THIS funnel, and it was putting a
-     stranger's address on the fulfilment row.
+  /* ── THE FORM'S EMAIL WINS, NOT THE GATEWAY'S (2026-09-24) ─────────────
+     This read `payment.email` on the reasoning that "Razorpay is the
+     authority: it holds what the buyer actually paid with". That reasoning
+     put a STRANGER'S ADDRESS on live fulfilment rows.
 
-     Razorpay Checkout recognises a returning device and pre-populates its own
-     remembered contact details, which can belong to whoever last paid on that
-     browser — a different person on a shared laptop, or an old address the
-     buyer no longer reads. Those remembered values are what land on the
-     payment entity. What the buyer typed into OUR form, on the other hand, is
-     the address they just asked us to send the WhatsApp invite and the guides
-     to. Fulfilment has to follow the form.
+     Razorpay Checkout recognises a returning device and pre-fills contact and
+     email from its own remembered customer, which silently beats the values we
+     pass in `prefill`. On a shared browser that is whoever last paid through
+     Razorpay on it. Those remembered values are what land on the payment
+     entity — so the WhatsApp invite and the guides went to that person while
+     the buyer who had just paid received nothing. A real row carried
+     `nirmitmaniar@gmail.com` for a buyer who typed something else.
 
-     So the order notes win, and the gateway's copy is demoted to a fallback
-     for the one case where the notes could not be recovered. Razorpay's own
-     values are still forwarded, under `payment_email` and `payment_contact`,
-     because a mismatch between the two is exactly what you want to see when
-     reconciling a refund — nothing is lost, it is just no longer in charge.
+     The order's `email` note is what the buyer typed on OUR checkout, and it
+     is the address they asked us to deliver to. Fulfilment follows the form;
+     the gateway is the fallback for the one case where the note is missing.
 
-     The other half of this fix is in app/checkout/page.tsx, which now marks
-     the email and contact fields `readonly` so Razorpay cannot overwrite the
-     prefill with its remembered values in the first place. */
+     PHONE IS DELIBERATELY DIFFERENT. There is no `phone` note any more (see
+     create-order: it was dropped so the bundles could have its 256 chars) and
+     Razorpay's `contact` is a verified number the buyer actually transacted
+     with, so for the number the gateway genuinely is the better source.
+
+     The other half of this fix is `readonly` on the payment sheet in
+     app/checkout/page.tsx, which stops the overwrite happening at all. */
   const notesEmail = String(notes.email ?? '').trim();
-  const notesPhone = String(notes.phone ?? '').trim();
   const gatewayEmail = String(payment.email ?? '').trim();
-  const gatewayPhone = String(payment.contact ?? '').trim();
-
   const email = notesEmail || gatewayEmail;
+  const phone = String(payment.contact ?? '') || '';
 
-  /* Normalised to E.164 WITH the leading plus, whichever source won.
-     The form stores digits only (`919876543210`) and the gateway stores
-     `+919876543210`, so without this the format of the `phone` column would
-     flip depending on which source was used — and any Pabbly or WhatsApp step
-     that matches on the number would start missing rows. Meta is indifferent:
-     hashPhone strips non-digits before hashing. */
-  const phoneDigits = (notesPhone || gatewayPhone).replace(/\D/g, '');
-  const phone = phoneDigits ? `+${phoneDigits}` : '';
-
-  /* Worth a line in the log, not an error: it is legitimate (a buyer who
-     edits the field on the sheet, or pays from a different number), but it is
-     also the first thing to check when a buyer says the invite never came. */
-  if (notesEmail && gatewayEmail && notesEmail.toLowerCase() !== gatewayEmail.toLowerCase()) {
+  /* A warning, not an error: it is legitimate (the buyer edits the field on
+     the sheet), but it is the first thing to check when someone reports that
+     the invite never arrived. */
+  if (
+    notesEmail &&
+    gatewayEmail &&
+    notesEmail.toLowerCase() !== gatewayEmail.toLowerCase()
+  ) {
     console.warn(
       `[rzp-webhook] ${paymentId} email differs: form=${notesEmail} ` +
         `gateway=${gatewayEmail} — fulfilment uses the form address`,
@@ -248,8 +199,10 @@ export async function POST(req: Request) {
         firstName: ctx.firstName,
         lastName: ctx.lastName,
         email,
+        paymentEmail: gatewayEmail,
         phone,
         city: ctx.city,
+        dialCode: ctx.dialCode,
         countryCode: country,
         fbc: ctx.fbc,
         fbp: ctx.fbp,
@@ -273,57 +226,9 @@ export async function POST(req: Request) {
         landingUrl: ctx.landingUrl,
         paymentId,
         orderId,
-        currency: String(payment.currency ?? CHECKOUT_CONFIG.currency),
+        currency: CHECKOUT_CONFIG.currency,
         product: CHECKOUT_CONFIG.contentName,
         occupation: ctx.occupation,
-
-        /* Campaign, continued: the GA4 id was always carried in the notes and
-           never forwarded, and the Meta ad ids are new to this pass. */
-        gaClientId: ctx.gaCid,
-        utmId: ctx.utmId,
-        adId: ctx.adId,
-        adsetId: ctx.adsetId,
-        campaignId: ctx.campaignId,
-        placement: ctx.placement,
-        siteSourceName: ctx.siteSourceName,
-
-        /* The payment, as Razorpay describes it. */
-        paidAt,
-        amountPaise: Number(payment.amount ?? 0),
-        amountRefundedRupees: paiseToRupees(payment.amount_refunded),
-        paymentEmail: gatewayEmail,
-        paymentContact: gatewayPhone,
-        feeRupees: paiseToRupees(payment.fee),
-        taxRupees: paiseToRupees(payment.tax),
-        method: str(payment.method),
-        bank: str(payment.bank),
-        wallet: str(payment.wallet),
-        vpa: str(payment.vpa),
-        cardId: str(payment.card_id),
-        cardLast4: str(card.last4),
-        cardNetwork: str(card.network),
-        cardType: str(card.type),
-        cardIssuer: str(card.issuer),
-        status: str(payment.status),
-        captured: Boolean(payment.captured),
-        international: Boolean(payment.international),
-        description: str(payment.description),
-        rrn: str(acquirer.rrn),
-        upiTransactionId: str(acquirer.upi_transaction_id),
-        bankTransactionId: str(acquirer.bank_transaction_id),
-        authCode: str(acquirer.auth_code),
-        errorCode: str(payment.error_code),
-        errorDescription: str(payment.error_description),
-
-        /* The order. */
-        orderReceipt: str(order?.receipt),
-        orderAttempts: Number(order?.attempts ?? 0),
-        orderCreatedAt,
-
-        /* Provenance, and the alarm for this pass's own regression. */
-        webhookEvent: String(parsed.event ?? ''),
-        webhookReceivedAt: receivedAt,
-        contextRecovered,
       })
     : { ok: false, status: 0 };
 
@@ -380,20 +285,12 @@ export async function POST(req: Request) {
      slowly falling match quality. */
   console.log(
     `[rzp-webhook] ${paymentId} Purchase capi=${result.ok} ga4=${ga4.ok} ` +
-      `pabbly=${pabbly.ok} ctx=${contextRecovered ? 'ok' : 'MISSING'} ` +
-      `method=${str(payment.method) || '-'} amount=${valueRupees}`,
+      /* The health check moved off createdAt, which now comes from Razorpay
+         and is therefore always present: it could no longer tell us whether
+         the NOTES unpacked, which is the thing worth watching. landingUrl is
+         the honest canary instead, since every real order carries one. */
+      `pabbly=${pabbly.ok} notes=${ctx.landingUrl ? 'ok' : 'EMPTY'}`,
   );
-  /* Loud, separate, and on its own line: a recovered context is the whole
-     point of this route, and its absence used to be visible only as a Pabbly
-     row full of blanks that nobody was watching. */
-  if (!contextRecovered) {
-    console.error(
-      `[rzp-webhook] ${paymentId} NO BUYER CONTEXT on order ${orderId || '-'}. ` +
-        'The order notes could not be read: check RAZORPAY_KEY_ID/SECRET are ' +
-        'the same pair that created the order (test keys cannot read a live ' +
-        'order), and that the order was created by /api/razorpay/create-order.',
-    );
-  }
   return NextResponse.json({
     ok: true,
     capi: result.ok ? 'sent' : 'error',

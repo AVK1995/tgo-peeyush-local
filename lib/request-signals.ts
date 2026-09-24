@@ -52,3 +52,41 @@ export function readClientIp(req: Request): string {
 export function readClientUserAgent(req: Request): string {
   return (req.headers.get('user-agent') ?? '').trim();
 }
+
+/**
+ * Read one cookie off the request, server side.
+ *
+ * ── WHY THIS EXISTS (2026-09-22) ──────────────────────────────────────────
+ * /api/razorpay/create-order is a SAME-ORIGIN request from the buyer's own
+ * browser, so every cookie that browser holds is already sitting on it. Until
+ * this was added the route ignored them and trusted whatever the client chose
+ * to put in the JSON body instead.
+ *
+ * That mattered most for Meta's `_fbc`. If the pixel is blocked, or is still
+ * loading, or the in-app browser restricted the storage the client reader uses,
+ * the body arrives with no fbc and the click id is lost for good, even though
+ * the cookie was right there on the request.
+ *
+ * This is the trick the SDP build used and the reason its data was cleaner:
+ * read the cookie from the request, not from the client's report of it.
+ *
+ * Deliberately tolerant: a `Cookie` header is `a=1; b=2`, values are commonly
+ * percent-encoded, and a malformed escape must yield the raw value rather than
+ * throw inside a payment route.
+ */
+export function readRequestCookie(req: Request, name: string): string {
+  const header = req.headers.get('cookie') ?? '';
+  if (!header) return '';
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
+    const raw = part.slice(eq + 1).trim();
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return '';
+}

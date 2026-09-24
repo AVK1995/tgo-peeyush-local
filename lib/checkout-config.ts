@@ -33,6 +33,22 @@ export const CHECKOUT_CONFIG = {
   amountPaise: PRICE_PAISE,
   currency: 'INR',
   contentName: '5-Day Complete Health Reset Challenge',
+  /* ── THIS FUNNEL'S MARK ON ITS OWN ORDERS (2026-09-22) ─────────────
+     Written into every order's `notes.kind` at create time, and checked by
+     the webhook before it fires anything.
+
+     THE REASON IS HOW RAZORPAY FANS OUT. A webhook is registered per URL on
+     an ACCOUNT, and every subscribed event goes to every registered URL. So
+     this endpoint sees every captured payment on the account, not just the
+     ones this checkout created: another funnel on the same account, a
+     payment link made by hand in the dashboard, an invoice. Until this
+     value was read, all of them were being reported as a sale of THIS
+     challenge, to Meta, to GA4 and to the fulfilment hand-off.
+
+     One constant, read by both routes, because a marker that is written in
+     one file and matched by a literal in another is a marker that silently
+     stops matching the day somebody renames the funnel. */
+  orderKind: 'peeyush_5day_health_reset',
   /* The launch domain as the fallback, not example.com: this value is sent to
      Meta as event_source_url and written into every Razorpay order, so an
      unset env var would quietly attribute live events to a domain we do not
@@ -42,16 +58,14 @@ export const CHECKOUT_CONFIG = {
      empty string, which `??` passes straight through, and an empty
      event_source_url is silently worthless to Meta.
 
-     TRAILING SLASHES ARE STRIPPED, and that is not cosmetic. Callers append
-     paths to this (`${eventSourceUrl}/checkout`), so a host env var entered as
-     `https://drpeeyushprabhat.com/` — which is exactly how a browser offers it
-     when you copy the address bar — produced `https://drpeeyushprabhat.com//checkout`
-     on every fulfilment row and every Meta event. Meta treats that as a
-     different URL from the real one, which quietly splits the event's
-     attribution. */
+     A TRAILING SLASH IS STRIPPED HERE, not trusted to be absent. The webhook
+     builds the Pabbly url as `${fallbackEventSourceUrl}/checkout`, so a value
+     ending in `/` produced `//checkout` on every single sale. Meta never
+     showed it, because originOnly() throws the path away, so the only place
+     it surfaced was the one system nobody was watching the url in. */
   fallbackEventSourceUrl:
     ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() ||
-      'https://challenge.drpeeyushprabhat.com').replace(/\/+$/, ''),
+      'https://drpeeyushprabhat.com').replace(/\/+$/, ''),
   meta: {
     pixelId: process.env.META_PIXEL_ID ?? '',
     accessToken: process.env.META_CAPI_ACCESS_TOKEN ?? '',
