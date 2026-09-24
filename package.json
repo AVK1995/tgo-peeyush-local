@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:echo": "node scripts/webhook-echo.mjs",
+    "test:purchase": "node scripts/simulate-purchase.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

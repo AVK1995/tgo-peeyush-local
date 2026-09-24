@@ -39,6 +39,7 @@ import {
   CHECKOUT_HREF,
   CLIENT_RATING,
   CTA_LABEL,
+  CTA_LABEL_CARD,
   CTA_NOTE_HERO,
   HEALTH_TRANSFORMATIONS,
   PRICE,
@@ -65,10 +66,14 @@ export function AnnouncementBar() {
   const segments = [
     <>
       <span className="font-bold">Special Offer:</span> 5-Day Complete Health
-      Reset Challenge for <span style={{ color: C.gold }}>{PRICE}</span>
+      {/* goldInk, not gold. The bar is light now; his cyan (#06B6D4) is 2.4:1
+          on it and these two tokens are 12.5-13.5px, which is small text and
+          needs the 4.5:1 step. */}
+      Reset Challenge for <span style={{ color: C.goldInk }}>{PRICE}</span>
     </>,
     <>
-      Price Increases To <span style={{ color: C.gold }}>{PRICE_RISES_TO}</span>{' '}
+      Price Increases To{' '}
+      <span style={{ color: C.goldInk }}>{PRICE_RISES_TO}</span>{' '}
       Tomorrow
     </>,
     <>100% Money-Back Guarantee</>,
@@ -99,7 +104,7 @@ export function AnnouncementBar() {
               }}
             />
           ) : (
-            <span aria-hidden style={{ color: 'rgba(6,182,212,0.55)' }}>
+            <span aria-hidden style={{ color: C.lineStrong }}>
               |
             </span>
           )}
@@ -113,9 +118,14 @@ export function AnnouncementBar() {
     <div
       className="cta-shimmer w-full py-2.5"
       style={{
-        background: C.navyDeep,
-        color: C.onDark,
-        ['--shimmer' as string]: 'rgba(6,182,212,0.18)',
+        /* Light, because the stage under it is light. A deep-teal strip above a
+           near-white hero reads as a leftover from another page rather than as
+           the top of this one. A cyan-washed tint keeps it as its own band
+           without reintroducing the dark slab. */
+        background: C.goldWash,
+        color: C.ink,
+        borderBottom: `1px solid ${C.line}`,
+        ['--shimmer' as string]: 'rgba(6,182,212,0.22)',
       }}
     >
       {/* The mask lives on this inner element, NOT on the bar. A mask applies to
@@ -168,9 +178,11 @@ export function Hero() {
             <span
               className="inline-flex items-center gap-2.5 rounded-full px-4 py-2 text-left text-[10.5px] font-bold uppercase leading-[1.5] tracking-[0.1em]"
               style={{
-                background: 'rgba(6,182,212,0.10)',
-                border: '1px solid rgba(6,182,212,0.32)',
-                color: C.gold,
+                background: C.goldWash,
+                border: `1px solid rgba(6,182,212,0.38)`,
+                /* goldInk: this is 10.5px uppercase, the smallest type on the
+                   screen, so it takes the 4.5:1 step on the light ground. */
+                color: C.goldInk,
               }}
             >
               <span
@@ -213,20 +225,58 @@ export function Hero() {
                 The lit token is the kz-lit gradient rather than a flat colour:
                 his highlight phrase carries a cyan-to-emerald sweep, and it is
                 the same object the price uses, so "the lit thing" is one
-                treatment on this page rather than two. The `-dark` variant,
-                because this headline is on the stage: `.kz-lit` runs on the
-                deep steps for the light page and would be 2.0:1 here. */}
+                treatment on this page rather than two.
+
+                ⚠️ `.kz-lit`, NOT `.kz-lit-dark`, since 24 Sep. The two are the
+                same sweep on different steps: `-dark` is mixed bright to carry
+                on a deep ground, and on the light stage it renders at about
+                2.0:1 — a headline you cannot read. Swapping the stage without
+                swapping this pair is the one change here that fails silently,
+                because it still LOOKS like a lit phrase. */}
             <h1
               className="mt-7 font-display text-[30px] font-extrabold leading-[1.06] sm:text-[38px] lg:text-[46px]"
-              style={{ color: C.onDark }}
+              style={{ color: C.ink }}
             >
               Reduce Chronic Stress, Anxiety &amp; Body Pain by{' '}
-              <span className="kz-lit-dark">up to 30%</span> in 5 Days
+              <span className="kz-lit">up to 30%</span> in 5 Days
               <span className="mt-3 block text-[21px] font-semibold leading-[1.24] sm:text-[24px] lg:text-[27px]">
                 &amp; Overcome Migraine, Asthma, Low Energy &amp; Lifestyle
                 Diseases
               </span>
             </h1>
+
+            {/* ══ THE MOBILE BANNER ════════════════════════════════════════
+                Phone ONLY, and directly under the headline, which is where the
+                reference puts it.
+
+                It exists because of what the two layouts do differently. From
+                `lg` up the offer card sits in the right column, level with the
+                headline, so the screen already has its one large image and a
+                second one here would be a repeat — which is exactly what the
+                comment that used to occupy this slot said about a hero
+                photograph. Below `lg` that card is not beside the headline at
+                all, it is stacked a long way below it, so the top of a phone
+                screen is pure type from the announcement bar to the CTA. This
+                is the image that breaks that up.
+
+                `lg:hidden`, not `md:hidden`: the grid goes two-column at `lg`
+                (see the wrapper above), so the banner must persist through the
+                whole single-column range or a tablet gets the same wall of
+                type the phone had.
+
+                16/9 is the file's own ratio — 1672x941 — declared so the space
+                is reserved before the bytes land and the headline above it does
+                not jump. `sizes="100vw"` because in this range it genuinely is
+                the full width, and no `priority`: the LCP candidate on this
+                screen is the headline, and preloading a 1.7MB PNG would push
+                the text it sits under further out. */}
+            <Art
+              src={asset('/banner/peeyush-banner.png')}
+              alt="Dr. Peeyush Prabhat's 5-Day Complete Health Reset Challenge"
+              ratio="16 / 9"
+              sizes="100vw"
+              className="mt-7 lg:hidden"
+            />
 
             {/* The disqualifier line: the turn in the argument, not body copy.
                 It used to be set in the display italic, which worked because
@@ -238,7 +288,10 @@ export function Hero() {
                 second accent does a job. */}
             <p
               className="mx-auto mt-5 max-w-[600px] font-body text-[17px] font-medium italic leading-[1.5] sm:text-[18.5px] lg:mx-0"
-              style={{ color: C.emerald }}
+              /* emeraldInk, not emerald. #10B981 was 7.4:1 on the dark stage
+                 and is 2.8:1 on this one; the deep step is his same second
+                 accent at 5.4:1. */
+              style={{ color: C.emeraldInk }}
             >
               without endless yoga, gym workouts, medicines or expensive
               treatments...
@@ -251,7 +304,7 @@ export function Hero() {
 
             <p
               className="mx-auto mt-6 max-w-[600px] text-[16px] leading-[1.7] lg:mx-0"
-              style={{ color: C.onDarkMute }}
+              style={{ color: C.inkSoft }}
             >
               Across 5 doctor-led live sessions, Dr. Peeyush will help you
               uncover the breathing, energy, nervous-system and emotional
@@ -269,11 +322,13 @@ export function Hero() {
                 className="lego-press cta-shimmer group inline-flex min-h-[58px] w-full items-center justify-center gap-2.5 rounded-full px-8 font-body text-[15.5px] font-bold sm:w-auto"
                 style={{
                   background: C.ctaGold,
-                  /* onAccent, NOT ink. Ink is white now, and white on this cyan
-                     is 2.4:1. */
+                  /* onAccent, NOT ink: dark ink on the bright cyan pill, 7.7:1.
+                     Unchanged by the stage flip — the pill is its own ground. */
                   color: C.onAccent,
+                  /* Softened with the stage. A shadow built to seat a pill on a
+                     near-black slab reads as smudge under it on near-white. */
                   boxShadow:
-                    '0 16px 34px -16px rgba(0,0,0,0.7), 0 10px 34px -8px rgba(6,182,212,0.4)',
+                    '0 14px 30px -16px rgba(14,39,51,0.45), 0 10px 28px -10px rgba(6,182,212,0.45)',
                   ['--shimmer' as string]: 'rgba(255,255,255,0.55)',
                 }}
               >
@@ -290,12 +345,12 @@ export function Hero() {
             {/* Welded to the button, never floated away from it. */}
             <p
               className="mt-4 flex items-center justify-center gap-2 text-[13.5px] font-medium lg:justify-start"
-              style={{ color: C.onDarkMute }}
+              style={{ color: C.inkSoft }}
             >
               {/* Emerald, not the spark. The spark is true red in this palette
                   and a red shield beside a money-back guarantee reads as a
                   warning; emerald is the confirm colour on his own page. */}
-              <ShieldCheck weight="fill" className="h-4 w-4 shrink-0" style={{ color: C.emerald }} />
+              <ShieldCheck weight="fill" className="h-4 w-4 shrink-0" style={{ color: C.emeraldInk }} />
               {CTA_NOTE_HERO}
             </p>
 
@@ -304,10 +359,12 @@ export function Hero() {
               className="mt-9 flex flex-col items-stretch gap-px overflow-hidden rounded-2xl sm:flex-row"
               style={{
                 /* This background IS the 1px rules: the rows sit on gap-px and
-                   this shows through between them, so it has to be brighter
-                   than the rows, not darker. */
-                background: 'rgba(6,182,212,0.26)',
-                border: '1px solid rgba(6,182,212,0.20)',
+                   this shows through between them. On the dark stage that meant
+                   it had to be BRIGHTER than the rows; now the rows are white,
+                   so the same trick needs it DARKER. Same mechanism, inverted
+                   relationship — the reason to keep this note. */
+                background: C.lineStrong,
+                border: `1px solid ${C.line}`,
               }}
             >
               {HERO_FACTS.map(({ icon: Icon, text }, idx) => (
@@ -317,14 +374,16 @@ export function Hero() {
                   className="flex flex-1 items-center justify-center gap-2.5 px-4 py-3.5 text-[13px] font-semibold"
                   style={{
                     ...legoDelay(idx, 90),
-                    /* Translucent so the stage glow still travels under the
-                       row; opaque enough that the dot grid does not read
-                       through the type. */
-                    background: 'rgba(10,31,42,0.82)',
-                    color: C.onDark,
+                    /* Opaque paper. The old value was a translucent dark tile
+                       that let the stage glow travel under it; against a light
+                       stage the equivalent is a clean white row, and leaving it
+                       translucent would let the dot grid read through the
+                       type. */
+                    background: C.surface,
+                    color: C.ink,
                   }}
                 >
-                  <Icon weight="bold" className="h-4 w-4 shrink-0" style={{ color: C.gold }} />
+                  <Icon weight="bold" className="h-4 w-4 shrink-0" style={{ color: C.goldInk }} />
                   {text}
                 </li>
               ))}
@@ -351,13 +410,19 @@ export function Hero() {
               className="rounded-[28px] p-7 text-center sm:p-8 lg:text-left"
               style={{
                 ...legoDelay(2, 90),
-                background: C.canvas,
+                /* `surface`, not `canvas`. On the dark stage the card was the
+                   only light object and any near-white read as paper; on a
+                   light stage canvas (#FAFDFE) is within two steps of the
+                   ground and the card stops being an object. Pure white plus
+                   the ring below is what still separates it. */
+                background: C.surface,
                 border: `1px solid ${C.lineStrong}`,
-                /* The 8px halo is the card's own light bleeding onto the stage;
-                   the deep shadow is what seats it. No bloom: a white card on a
-                   dark stage does not need to be told to come forward. */
+                /* The halo used to be the card's own light bleeding onto a dark
+                   slab. It cannot do that job here, so it becomes a plain cyan
+                   ring, and the shadow drops from near-black to the ink tint —
+                   a 0.6 black shadow under a card on near-white is a bruise. */
                 boxShadow:
-                  '0 0 0 8px rgba(6,182,212,0.09), 0 34px 70px -30px rgba(0,0,0,0.6)',
+                  '0 0 0 8px rgba(6,182,212,0.07), 0 28px 60px -34px rgba(14,39,51,0.42)',
               }}
             >
               {/* The offer-stack render, landed 15 Sep. 4:3 is ITS OWN ratio
@@ -423,7 +488,11 @@ export function Hero() {
                 }}
               >
                 <span className="inline-flex items-center gap-2.5">
-                  Reserve My Spot
+                  {/* CTA_LABEL_CARD, the priceless one. This button sits two
+                      rows under the card's own price line, so a label carrying
+                      the amount again would read as a second charge. It is the
+                      ONLY button on the site worded this way. */}
+                  {CTA_LABEL_CARD}
                   <ArrowRight
                     weight="bold"
                     className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"

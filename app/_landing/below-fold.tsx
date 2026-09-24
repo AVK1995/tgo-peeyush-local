@@ -3,13 +3,13 @@
 /**
  * Everything below the hero, in the order COPY-SOURCE.md sets out:
  *
+ *   7  Testimonials .............. ./proof   ← HOISTED, see the note below
  *   3a THE RESULTS ............... this file
  *   3b What you'll experience .... this file
  *   4  Your 5-Day Schedule ....... this file  ← the signature beat
  *   5  Live sessions band ........ this file
  *   5b Recognition (YouTube/TEDx)  this file
  *   6  Does this sound like you? . ./proof
- *   7  Testimonials .............. ./proof
  *   8  The toolkit ............... ./toolkit
  *   9  Meet your guide ........... ./close
  *  10  Why this works ............ ./close
@@ -63,7 +63,7 @@ import {
   SESSION_TIMES,
   SESSION_TIMES_TZ,
 } from './offer';
-import Proof from './proof';
+import { Recognition, Testimonials } from './proof';
 import { C, SectionHeading } from './shared';
 import Toolkit from './toolkit';
 
@@ -747,12 +747,26 @@ export default function BelowFold() {
      .bw-js is on the document. */
   return (
     <LazyMotion features={domAnimation}>
+      {/* ⚠️ TESTIMONIALS FIRST, since 24 Sep (Atul's call). They were beat 7,
+          after the schedule and the recognition band; they now open everything
+          below the hero, so the first thing after the offer is other people
+          saying it worked.
+
+          It is the FIRST child of this component on purpose: `BelowFold` is
+          rendered immediately after `<Hero />` in app/page.tsx, so first here
+          is "directly below the hero" without moving the block out of the
+          deferred chunk and onto the critical path.
+
+          "Does this sound like you?" did NOT move with it — see the note on
+          `Testimonials` in ./proof for why that beat has to stay in argument
+          order. */}
+      <Testimonials />
       <Results />
       <Experience />
       <Schedule />
       <SessionsBand />
       <RecognitionBand />
-      <Proof />
+      <Recognition />
       <Toolkit />
       <Close />
     </LazyMotion>

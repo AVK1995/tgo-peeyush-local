@@ -70,7 +70,7 @@ const RECOGNITION: [string, string, string][] = [
   ],
 ];
 
-function Recognition() {
+export function Recognition() {
   return (
     <section className="px-4 py-12 sm:py-20 lg:py-24" style={{ background: C.canvas }}>
       <SectionHeading>
@@ -396,12 +396,29 @@ function ClipRail({
   );
 }
 
-export default function Proof() {
+/**
+ * The testimonial rails, split out of `Proof` on 24 Sep so they can be hoisted
+ * directly under the hero.
+ *
+ * `Proof` used to render two consecutive copy beats: "Does this sound like
+ * you?" (beat 6) and the testimonials (beat 7). Only the second one moves.
+ * Beat 6 is the problem-agitation turn and it has to stay in argument order,
+ * immediately before the toolkit — hoisting it with the testimonials would
+ * open the page by telling a reader who has just met the offer what is wrong
+ * with them.
+ *
+ * SO THIS IS TWO EXPORTS, NOT A REORDERED `Proof`. `Recognition` stays in its
+ * slot in below-fold; `Testimonials` goes to the top of it.
+ *
+ * ONLY ONE TESTIMONIAL FORMAT EXISTS in this build — thirteen video clips
+ * across two rails. There are no transformation stills and no chat
+ * screenshots, so the requested video → transformations → chats ordering has
+ * nothing to order: the rails ARE the whole block. If those formats are
+ * supplied later they belong below the second rail, in that sequence.
+ */
+export function Testimonials() {
   return (
-    <>
-      <Recognition />
-
-      <section className="px-4 py-12 sm:py-20 lg:py-24" style={{ background: C.canvasAlt }}>
+    <section className="px-4 py-12 sm:py-20 lg:py-24" style={{ background: C.canvasAlt }}>
         {/* The headline is three quoted fragments followed by the claim they
             support. Set in two tiers so the quotes read as voices and the line
             under them reads as the page speaking — every word and the original
@@ -433,7 +450,6 @@ export default function Proof() {
         <div className="mt-5">
           <ClipRail clips={ROW_TWO} reverse label="Video testimonials, second row" />
         </div>
-      </section>
-    </>
+    </section>
   );
 }

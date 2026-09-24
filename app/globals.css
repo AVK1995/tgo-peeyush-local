@@ -442,14 +442,24 @@ button {
  *  placement and in intent. The floor ramps darker downward so the stage seats
  *  itself against the light page it hands over to at the seam.
  * ═══════════════════════════════════════════════════════════════════════ */
+/* ⚠️ THE STAGE IS LIGHT NOW (24 Sep 2026, Atul's call).
+   It was a deep-teal slab — #0a1f2a into #041016 — which is what the comment
+   above still describes. The lighting is kept exactly: cyan from the top left,
+   emerald from the right, a third pool low and centre, and a floor that ramps
+   AWAY from white downward so the stage still seats itself rather than
+   dissolving into the page it hands over to. Only the ground flipped.
+
+   The tints are carried at roughly three quarters of their old opacity. On a
+   dark ground a 0.18 cyan wash is a glow; on a near-white one the same value
+   reads as a colour cast, and the headline has to sit on it. */
 .kz-stage {
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(ellipse 62% 52% at 20% 0%, rgba(6, 182, 212, 0.18), transparent 58%),
-    radial-gradient(ellipse 58% 50% at 84% 26%, rgba(16, 185, 129, 0.14), transparent 62%),
-    radial-gradient(ellipse 46% 40% at 58% 98%, rgba(6, 182, 212, 0.1), transparent 66%),
-    linear-gradient(178deg, #0a1f2a 0%, #06141c 58%, #041016 100%);
+    radial-gradient(ellipse 62% 52% at 20% 0%, rgba(6, 182, 212, 0.13), transparent 58%),
+    radial-gradient(ellipse 58% 50% at 84% 26%, rgba(16, 185, 129, 0.1), transparent 62%),
+    radial-gradient(ellipse 46% 40% at 58% 98%, rgba(6, 182, 212, 0.07), transparent 66%),
+    linear-gradient(178deg, #ffffff 0%, #f5fbfc 58%, #e9f5f8 100%);
 }
 .kz-stage > * { position: relative; z-index: 2; }
 .kz-stage::after {
@@ -457,19 +467,22 @@ button {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background-image: radial-gradient(rgba(6, 182, 212, 0.24) 1px, transparent 1px);
+  /* Darker and fainter than the dark-stage grid. A 0.24 dot that read as a
+     subtle texture against #06141c is a visible stipple against white, and at
+     26px pitch it moirés against body copy. */
+  background-image: radial-gradient(rgba(6, 182, 212, 0.16) 1px, transparent 1px);
   background-size: 26px 26px;
   -webkit-mask-image: radial-gradient(ellipse 74% 62% at 50% 42%, #000 0%, transparent 78%);
   mask-image: radial-gradient(ellipse 74% 62% at 50% 42%, #000 0%, transparent 78%);
-  opacity: 0.5;
+  opacity: 0.38;
   pointer-events: none;
 }
-/* The seam where the dark stage hands over to the light page. The value change
-   already marks the join, so this is a flourish rather than the horizon line:
-   a soft cyan hairline, not a bright one. */
+/* The seam. It used to mark a hard value change from a dark stage to a light
+   page; both sides are light now, so it is a quiet rule that closes the hero
+   rather than a horizon line. */
 .kz-stage-seam {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.38), transparent);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

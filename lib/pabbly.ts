@@ -32,6 +32,12 @@ export type PabblyPurchase = {
   firstName: string;
   lastName: string;
   email: string;
+  /** What RAZORPAY had on file for the payer, which is not necessarily what
+   *  the buyer typed into our checkout. `email` above is the form's value and
+   *  is the delivery address; this is kept beside it so a mismatch stays
+   *  visible when reconciling a refund or chasing "the invite never arrived".
+   *  See the note in the webhook on why the form wins. */
+  paymentEmail: string;
   phone: string;
   city: string;
   /** "+91", kept apart from `phone`, which arrives as full E.164. */
@@ -93,6 +99,7 @@ export async function sendPabblyPurchase(
         first_name: s(p.firstName),
         last_name: s(p.lastName),
         email: s(p.email),
+        payment_email: s(p.paymentEmail),
         phone: s(p.phone),
         city: s(p.city),
         dial_code: s(p.dialCode),

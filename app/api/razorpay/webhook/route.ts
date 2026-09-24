@@ -127,10 +127,48 @@ export async function POST(req: Request) {
     ctx.occupation === 'working_professional' || ctx.occupation === 'homemaker'
       ? ctx.occupation
       : undefined;
-  /* Razorpay is the authority on email and phone: it holds what the buyer
-     actually paid with, which can differ from what they typed into our form. */
-  const email = String(payment.email ?? '') || '';
+  /* ── THE FORM'S EMAIL WINS, NOT THE GATEWAY'S (2026-09-24) ─────────────
+     This read `payment.email` on the reasoning that "Razorpay is the
+     authority: it holds what the buyer actually paid with". That reasoning
+     put a STRANGER'S ADDRESS on live fulfilment rows.
+
+     Razorpay Checkout recognises a returning device and pre-fills contact and
+     email from its own remembered customer, which silently beats the values we
+     pass in `prefill`. On a shared browser that is whoever last paid through
+     Razorpay on it. Those remembered values are what land on the payment
+     entity — so the WhatsApp invite and the guides went to that person while
+     the buyer who had just paid received nothing. A real row carried
+     `nirmitmaniar@gmail.com` for a buyer who typed something else.
+
+     The order's `email` note is what the buyer typed on OUR checkout, and it
+     is the address they asked us to deliver to. Fulfilment follows the form;
+     the gateway is the fallback for the one case where the note is missing.
+
+     PHONE IS DELIBERATELY DIFFERENT. There is no `phone` note any more (see
+     create-order: it was dropped so the bundles could have its 256 chars) and
+     Razorpay's `contact` is a verified number the buyer actually transacted
+     with, so for the number the gateway genuinely is the better source.
+
+     The other half of this fix is `readonly` on the payment sheet in
+     app/checkout/page.tsx, which stops the overwrite happening at all. */
+  const notesEmail = String(notes.email ?? '').trim();
+  const gatewayEmail = String(payment.email ?? '').trim();
+  const email = notesEmail || gatewayEmail;
   const phone = String(payment.contact ?? '') || '';
+
+  /* A warning, not an error: it is legitimate (the buyer edits the field on
+     the sheet), but it is the first thing to check when someone reports that
+     the invite never arrived. */
+  if (
+    notesEmail &&
+    gatewayEmail &&
+    notesEmail.toLowerCase() !== gatewayEmail.toLowerCase()
+  ) {
+    console.warn(
+      `[rzp-webhook] ${paymentId} email differs: form=${notesEmail} ` +
+        `gateway=${gatewayEmail} — fulfilment uses the form address`,
+    );
+  }
   /* Origin only, for the same reason Meta gets origin only: the path names the
      condition. Pabbly receives the canonical checkout url for reference. */
   const eventSourceUrl = CHECKOUT_CONFIG.fallbackEventSourceUrl;
@@ -161,6 +199,7 @@ export async function POST(req: Request) {
         firstName: ctx.firstName,
         lastName: ctx.lastName,
         email,
+        paymentEmail: gatewayEmail,
         phone,
         city: ctx.city,
         dialCode: ctx.dialCode,
