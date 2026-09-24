@@ -67,20 +67,43 @@ export const WHATSAPP_INVITE = process.env.NEXT_PUBLIC_WHATSAPP_INVITE ?? '';
 export const CHECKOUT_HREF = '/checkout';
 
 /**
- * The CTA label and its reassurance line, as written in the source copy.
+ * THE THREE CTA LABELS. There are exactly three, and every button on the site
+ * uses one of them — standardised 24 Sep 2026 on Atul's call.
  *
- * The source repeats the same pair at the hero, the live-sessions card and the
- * final recap, so HERO and the general note are the same string here rather
- * than two variants. They stay separate exports because the two render on
- * different grounds (dark stage vs paper) and a future copy pass may want to
- * split them again.
+ * Before this the page carried four different wordings: "Start Your 5-Day
+ * Health Reset · ₹497" in three places, "Reserve My Spot" on the offer card,
+ * "Take Action · ₹497" hard-coded into beat 14, and a fourth on the docked
+ * bar. A reader scrolling the page met the same single action described four
+ * ways, which reads as four different offers rather than one.
+ *
+ * ⚠️ THE SPLIT IS BY POSITION, NOT BY SECTION. Adding a button means picking
+ * from these three, not writing a fifth:
+ *
+ *   CTA_LABEL         the default. The hero, the live-sessions band, the final
+ *                     recap, beat 14 — everything that is not one of the two
+ *                     cases below.
+ *   CTA_LABEL_CARD    the button UNDER THE OFFER-STACK IMAGE only. It carries
+ *                     no price because the card states the price on its own
+ *                     line two rows above the button, and repeating it inside
+ *                     the label reads as a second, different charge.
+ *   CTA_LABEL_STICKY  the docked bar only. Worded for someone who has already
+ *                     scrolled past the offer, so it names the outcome rather
+ *                     than the programme.
+ *
+ * ⚠️ FLAG FOR ATUL, carried over: the source copy writes beat 14's button as
+ * "[Take Action · ₹497 →]". That wording is now REPLACED by CTA_LABEL, which
+ * is a deliberate departure from verbatim copy in favour of one consistent
+ * action. Say the word and it goes back to its own constant.
  */
-export const CTA_LABEL = `Start Your 5-Day Health Reset · ${PRICE}`;
+export const CTA_LABEL = `Start Your 5-Day Reset · ${PRICE}`;
+export const CTA_LABEL_CARD = 'Reserve My Spot';
+export const CTA_LABEL_STICKY = `Get Instant Access · ${PRICE}`;
+
 export const CTA_NOTE_HERO = 'Join Risk-Free · 100% Money-Back Guarantee';
 export const CTA_NOTE = 'Join Risk-Free · 100% Money-Back Guarantee';
-
-/** Beat 14's button, which the copy words differently from every other CTA. */
-export const CTA_LABEL_ACTION = `Take Action · ${PRICE}`;
+/** The docked bar's own line, which names the guarantee without the prefix:
+ *  it sits at 11.5px on a phone and the longer note clipped at both edges. */
+export const CTA_NOTE_STICKY = '100% Money-Back Guarantee';
 
 /** ₹2,500 → "₹2,500". One formatter, so a value never renders two ways. */
 export const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;

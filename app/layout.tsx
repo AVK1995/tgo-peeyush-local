@@ -92,10 +92,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   /* The announcement strip, which is the topmost thing on the page, so the
      phone browser chrome continues it rather than cutting a line above it.
-     It stays DARK even though the page is now light end to end below the hero:
-     the chrome touches the strip, not the canvas, and matching the canvas here
-     would draw a hard light band above a dark rail. This is --navy-deep. */
-  themeColor: '#06141C',
+
+     ⚠️ This tracks the STRIP, and the strip changed colour on 24 Sep when the
+     hero stage went light. It was --navy-deep (#06141C) to match a dark rail;
+     leaving it there now would paint a near-black band above a pale strip,
+     which on a phone is the most visible edge on the page. This is the
+     goldWash the strip is filled with. */
+  themeColor: '#E2F6FA',
   width: 'device-width',
   initialScale: 1,
 };

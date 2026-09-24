@@ -483,10 +483,13 @@ function Mechanism() {
    how the hero's white card works on the dark stage, and deliberately so, since
    between them they are the page's two focal objects on opposite grounds.
 
-   ⚠️ FLAG FOR ATUL: the source writes the button as "[Take Action · ₹497 →]".
+   ⚠️ FLAG FOR ATUL: the source writes this button as "[Take Action · ₹497 →]".
    The square brackets and the arrow are the copy's shorthand for "this is a
-   button", so the label renders as "Take Action · ₹497" with the page's arrow
-   token. If the brackets were meant literally, say so and they go back in. */
+   button", so they were never rendered literally. As of 24 Sep the WORDING is
+   no longer verbatim either: the label is now the standard CTA_LABEL, so the
+   page describes its one action one way throughout. That is a deliberate
+   departure from the source copy — say the word and it gets its own constant
+   back. */
 function TwoOptions() {
   return (
     <section className="px-4 py-12 sm:py-20 lg:py-24" style={{ background: C.canvasAlt }}>
@@ -576,7 +579,11 @@ function TwoOptions() {
             }}
           >
             <span className="inline-flex items-center gap-2.5">
-              Take Action · {PRICE}
+              {/* Was "Take Action · ₹497", hard-coded here and the only button
+                  on the site with its own wording. Standardised 24 Sep: this is
+                  the same single action as every other CTA, so it carries the
+                  same label. See the note on the three labels in ./offer. */}
+              {CTA_LABEL}
               <ArrowRight
                 weight="bold"
                 className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
