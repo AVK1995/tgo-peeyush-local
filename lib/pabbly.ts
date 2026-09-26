@@ -67,6 +67,19 @@ export type PabblyPurchase = {
   currency: string;
   product: string;
   occupation: string;
+
+  /* ── WHICH PASS (26 Sep 2026, the OTO step) ────────────────────────────
+     `tier` is the stable enum — "standard" or "vip" — and is what a Pabbly
+     router should branch on. `tierName` is the prose title, for the email and
+     the sheet. `hasRecordings` is the single entitlement that actually
+     differs, pre-computed here so the workflow does not have to encode the
+     rule "vip means replays" in two places.
+
+     Branch on `tier`, NOT on `amount`: ₹997 identifies the VIP pass only
+     until the first discount code or price change. */
+  tier: string;
+  tierName: string;
+  hasRecordings: boolean;
 };
 
 /* Every key is emitted on every call, empty string where unknown. Pabbly
@@ -140,6 +153,12 @@ export async function sendPabblyPurchase(
         currency: s(p.currency),
         product: s(p.product),
         occupation: s(p.occupation),
+        tier: s(p.tier),
+        tier_name: s(p.tierName),
+        /* Boolean, not the string "false": a Pabbly router condition on a
+           non-empty string treats "false" as true, which would send the
+           replay library to every standard buyer. */
+        has_recordings: Boolean(p.hasRecordings),
       }),
     });
     return { ok: res.ok, status: res.status };

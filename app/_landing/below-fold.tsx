@@ -57,7 +57,7 @@ import Close from './close';
 import { legoBrick, legoDelay } from './lego-style';
 import { domAnimation, LazyMotion } from './motion-lite';
 import {
-  CHECKOUT_HREF,
+  OTO_HREF,
   CTA_LABEL,
   CTA_NOTE,
   SESSION_TIMES,
@@ -634,7 +634,7 @@ function SessionsBand() {
 
         <div className="mx-auto mt-8 flex max-w-[430px] flex-col items-center">
           <Link
-            href={CHECKOUT_HREF}
+            href={OTO_HREF}
             data-cta
             className="lego-press cta-shimmer group inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-full px-7 font-body text-[15px] font-bold"
             style={{

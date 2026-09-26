@@ -2,6 +2,7 @@ import crypto from 'crypto';
 
 import { NextResponse } from 'next/server';
 
+import { resolveTier } from '@/app/_landing/offer';
 import { CHECKOUT_CONFIG, capiReady, isTestMode } from '@/lib/checkout-config';
 import { ga4ServerReady, sendGa4Purchase } from '@/lib/ga4-server';
 import { sendCapiEvent, type Occupation } from '@/lib/meta-capi';
@@ -111,6 +112,19 @@ export async function POST(req: Request) {
 
   const valueRupees = amountRupees || CHECKOUT_CONFIG.amountRupees;
 
+  /* ── WHICH PASS WAS BOUGHT ─────────────────────────────────────────────
+     Read from the order's own `tier` note, written at create-order time from
+     the server's resolution of it. FULFILMENT BRANCHES ON THIS: a `vip` row
+     is owed the replay library and the extended Q&A, a `standard` row is not,
+     and Pabbly has no other reliable way to tell them apart.
+
+     Deliberately NOT inferred from the amount. ₹997 identifies the VIP pass
+     only until the first discount code, price change or part-payment, and a
+     silent mis-inference here hands someone a product they did not buy — or
+     withholds one they did. An order placed before this note existed resolves
+     to `standard`, which is the safe direction to be wrong in. */
+  const tier = resolveTier(notes.tier);
+
   /* Everything the browser knew, written into the order at create time and
      unpacked here. This is the ONLY route back to the buyer's own IP, user
      agent, campaign and landing page: this request came from Razorpay, so its
@@ -183,8 +197,11 @@ export async function POST(req: Request) {
         transactionId: paymentId,
         valueRupees,
         currency: CHECKOUT_CONFIG.currency,
-        itemId: 'peeyush-5day-health-reset',
-        itemName: CHECKOUT_CONFIG.contentName,
+        /* Per pass, so the two do not collapse into one line item in GA4 and
+           the upgrade rate is readable from the reporting rather than only
+           from the sheet. */
+        itemId: `peeyush-5day-health-reset-${tier.id}`,
+        itemName: tier.name,
       })
     : { ok: false, status: 0 };
 
@@ -227,8 +244,15 @@ export async function POST(req: Request) {
         paymentId,
         orderId,
         currency: CHECKOUT_CONFIG.currency,
-        product: CHECKOUT_CONFIG.contentName,
+        product: tier.name,
         occupation: ctx.occupation,
+        /* The branch key. `product` above is prose and will change the next
+           time the copy does; `tier` is a stable enum and is what a Pabbly
+           router should actually switch on to decide whether this buyer gets
+           the replay library. */
+        tier: tier.id,
+        tierName: tier.name,
+        hasRecordings: tier.id === 'vip',
       })
     : { ok: false, status: 0 };
 

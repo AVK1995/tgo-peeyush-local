@@ -1,4 +1,4 @@
-import { PRICE_RUPEES } from '@/app/_landing/offer';
+import { PRICE_RUPEES, resolveTier, type Tier, type TierId } from '@/app/_landing/offer';
 
 /**
  * Every server-side constant the payment and tracking routes need, in one
@@ -27,6 +27,55 @@ import { PRICE_RUPEES } from '@/app/_landing/offer';
  * below on the strength of that comment.
  */
 const PRICE_PAISE = PRICE_RUPEES * 100;
+
+/**
+ * THE PRICE OF A PASS, RESOLVED SERVER-SIDE (26 Sep 2026, the OTO step).
+ *
+ * There are two passes now, so "the amount" is no longer a constant — it is a
+ * function of which one the buyer chose. This is the only place that resolves
+ * it for the gateway, and it takes a TIER ID rather than an amount.
+ *
+ * ⚠️ NEVER ADD AN `amount` PARAMETER TO THIS, or to the route that calls it.
+ * The tier arrives from the browser, so it is attacker-controlled; the id is a
+ * closed set of two strings and `resolveTier` falls back to the cheaper pass
+ * for anything else, but an amount would be a number the buyer picks. That is
+ * the difference between a mangled URL selling the wrong pass and devtools
+ * selling the VIP pass for ₹1.
+ *
+ * `CHECKOUT_CONFIG.amountRupees` / `amountPaise` are KEPT as the standard
+ * pass's figures, because the tracking fallbacks and the ₹0-guard still want a
+ * single default when no tier is in play.
+ */
+export const tierPricing = (tier: TierId | Tier | unknown) => {
+  /* ⚠️ THE ID IS EXTRACTED, THEN RE-RESOLVED FROM THE CANONICAL TABLE. Never
+     `tier as Tier`.
+
+     The first version of this trusted any object that had an `id` property and
+     read `rupees` straight off it. The create-order route passes `body.tier`,
+     which is parsed JSON from the browser — so posting
+     `{"tier":{"id":"vip","rupees":1}}` bought the VIP pass for one rupee. It
+     type-checked, it read as a convenience for internal callers holding a real
+     Tier, and it was a live price-tampering hole.
+
+     Taking only the id and looking the price up again costs nothing and makes
+     the shape of the input irrelevant: an object, a string, a number or
+     nothing at all can now only ever select between two prices this file
+     owns. */
+  const id =
+    typeof tier === 'object' && tier !== null && 'id' in tier
+      ? (tier as { id?: unknown }).id
+      : tier;
+  const t: Tier = resolveTier(id);
+  return {
+    tier: t,
+    tierId: t.id,
+    rupees: t.rupees,
+    paise: Math.round(t.rupees * 100),
+    /* What Meta and GA4 call the thing that was bought. Per-pass, so the two
+       do not collapse into one line item in reporting. */
+    contentName: t.name,
+  };
+};
 
 export const CHECKOUT_CONFIG = {
   amountRupees: PRICE_RUPEES,

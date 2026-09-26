@@ -43,7 +43,7 @@ import { ArrowRight } from '@phosphor-icons/react/dist/ssr';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { CHECKOUT_HREF } from './offer';
+import { OTO_HREF } from './offer';
 
 export const C = {
   /* ── environment. Never pure white: #FAFDFE is faintly COOL, which is the
@@ -220,7 +220,7 @@ export function SectionHeading({
  *            bloom and stop reading as an object.
  * ═══════════════════════════════════════════════════════════════════════ */
 export function PrimaryCTA({
-  href = CHECKOUT_HREF,
+  href = OTO_HREF,
   label,
   tone = 'navy',
   breathe = false,

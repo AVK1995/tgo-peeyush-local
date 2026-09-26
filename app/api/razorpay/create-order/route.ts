@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 
 import { ATTR_COOKIE, packJsonNote, readAttrCookie } from '@/lib/attribution-edge';
-import { CHECKOUT_CONFIG, isTestMode } from '@/lib/checkout-config';
+import { CHECKOUT_CONFIG, isTestMode, tierPricing } from '@/lib/checkout-config';
 import { readClientIp, readClientUserAgent, readRequestCookie } from '@/lib/request-signals';
 
 /**
@@ -66,6 +66,17 @@ export async function POST(req: Request) {
   }
 
   const utm = (body.utm ?? {}) as Record<string, string | undefined>;
+
+  /* ── WHICH PASS, AND WHAT IT COSTS ─────────────────────────────────────
+     The browser sends a tier ID and NOTHING ELSE about money. The amount is
+     looked up here from that id, so the only thing a tampered request can
+     change is WHICH of two fixed prices is charged — and an unrecognised
+     value resolves to the cheaper pass rather than throwing, so a mangled
+     link sells the standard pass instead of failing at the till.
+
+     If this ever accepts an amount from the body, the VIP pass can be bought
+     for ₹1 from devtools. See the note on tierPricing in lib/checkout-config. */
+  const pricing = tierPricing(body.tier);
 
   /* Identity for the fulfilment record. Minted HERE, before payment, so a
      lead can be tracked from the moment the form is submitted rather than
@@ -135,6 +146,23 @@ export async function POST(req: Request) {
        orderKind in lib/checkout-config.ts. */
     kind: CHECKOUT_CONFIG.orderKind,
     lead_id: leadId,
+    /* ── THE PASS, AND WHY IT GETS THE LAST FREE KEY (26 Sep 2026) ──────
+       "standard" or "vip". This takes the fifteenth and final note slot, and
+       it earns it: fulfilment BRANCHES on it. A VIP buyer is owed the replay
+       library and the extended Q&A, and without this on the record there is
+       no way for Pabbly to tell the two apart after the fact — the amount
+       alone cannot be trusted for it, because a discount or a price change
+       makes ₹997 ambiguous.
+
+       It is a top-level readable key rather than a field inside one of the
+       JSON bundles for the same reason `name` and `email` are: whoever opens
+       the payment in the Razorpay dashboard to sort out a refund needs to see
+       which pass it was without decoding anything.
+
+       ⚠️ THERE ARE NOW ZERO SPARE KEYS. Anything further goes inside `cust`,
+       `meta` or `utm`, or Razorpay rejects the order and the buyer cannot
+       pay. */
+    tier: pricing.tierId,
     /* Readable in the Razorpay dashboard, for whoever opens a payment at 11pm
        trying to work out whose refund it is. */
     name: truncate(`${firstName} ${lastName}`.trim()),
@@ -243,7 +271,8 @@ export async function POST(req: Request) {
         authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`,
       },
       body: JSON.stringify({
-        amount: CHECKOUT_CONFIG.amountPaise,
+        /* Resolved from the tier id above, never from the request body. */
+        amount: pricing.paise,
         currency: CHECKOUT_CONFIG.currency,
         /* THIS CLIENT'S prefix, not the `kz_` one the scaffold was copied from.
            It is what a receipt is searched by in the Razorpay dashboard, so a
@@ -291,6 +320,12 @@ export async function POST(req: Request) {
       amount: order.amount,
       currency: order.currency,
       keyId, // publishable by design: the browser needs it to open the sheet
+      /* Echoed back so the success handler sends the buyer to the right
+         thank-you page. It is the SERVER's resolution of the tier, not the
+         browser's guess, so a tampered `?tier=` cannot land a standard buyer
+         on the VIP confirmation promising recordings they did not pay for. */
+      tier: pricing.tierId,
+      thankYouHref: pricing.tier.thankYouHref,
     });
   } catch (e) {
     console.error('[create-order] failed', e);

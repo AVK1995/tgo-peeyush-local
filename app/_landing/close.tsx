@@ -57,7 +57,7 @@ import SiteFooter from '@/components/SiteFooter';
 import { asset } from './asset-version';
 import { legoDelay } from './lego-style';
 import {
-  CHECKOUT_HREF,
+  OTO_HREF,
   CTA_LABEL,
   CTA_NOTE,
   INCLUDED,
@@ -566,7 +566,7 @@ function TwoOptions() {
           </p>
 
           <Link
-            href={CHECKOUT_HREF}
+            href={OTO_HREF}
             data-cta
             className="lego-press cta-shimmer group mt-7 inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-full px-6 font-body text-[15px] font-bold"
             style={{

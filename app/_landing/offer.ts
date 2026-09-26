@@ -62,9 +62,159 @@ export const CLIENT_RATING = '5.0';
  */
 export const WHATSAPP_INVITE = process.env.NEXT_PUBLIC_WHATSAPP_INVITE ?? '';
 
-/** The next click is a payment. Every CTA on the page, including the docked
- *  bar, points here. */
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE TWO PASSES  (added 26 Sep 2026, the OTO step)
+ *
+ *  The funnel gained a step: Ads → Landing → **OTO** → Checkout → Thank-you.
+ *  The landing no longer sends anyone straight to a payment; it sends them to
+ *  /oto, where they choose between the standard pass and the VIP pass, and the
+ *  choice is carried into the checkout as `?tier=`.
+ *
+ *  ⚠️ THIS IS THE ONLY PLACE EITHER PRICE IS DECLARED, and the rule at the top
+ *  of this file now covers two numbers instead of one. `lib/checkout-config.ts`
+ *  converts to paise from HERE, and the create-order route looks the amount up
+ *  from HERE by tier id.
+ *
+ *  ⚠️ AND THE SERVER NEVER TRUSTS A CLIENT AMOUNT. The browser sends a tier
+ *  ID — the string "standard" or "vip" — and the route resolves the rupees
+ *  itself. If it accepted an amount, anyone could open devtools and buy the VIP
+ *  pass for ₹1. `resolveTier()` below is that lookup, and it falls back to the
+ *  standard pass for anything it does not recognise rather than throwing, so a
+ *  mangled URL sells the cheaper thing instead of failing at the till.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+export type TierId = 'standard' | 'vip';
+
+export type Tier = {
+  id: TierId;
+  /** The card's title. Also the `product` on the fulfilment record. */
+  name: string;
+  /** Short form for the docked bar and the order summary, where the full
+   *  title does not fit. */
+  shortName: string;
+  rupees: number;
+  /** The struck-through anchor beside the price. */
+  compareAtRupees: number;
+  /** The small line under the title: what this pass is, in two words. */
+  badge: string;
+  /** The corner flag. Only the VIP pass carries one. */
+  ribbon?: string;
+  /** The line above the bullets on the upgrade card. */
+  lead?: string;
+  bullets: string[];
+  /**
+   * Whether to list the three PDF guides under the bullets.
+   *
+   * A FLAG, NOT A LIST. The guide titles are not repeated here — they come
+   * from `GUIDES` below, which is derived from `INCLUDED`, the value stack
+   * the landing page and the checkout already render. Writing them out a
+   * second time is how the same PDF ends up with two names on one funnel.
+   *
+   * Only the standard pass sets it. The VIP card does not need it: its copy
+   * is "Everything above, plus:", so repeating the guides there would say the
+   * upgrade adds something it does not.
+   */
+  guides?: boolean;
+  /** The caveat under the bullets. */
+  note?: string;
+  /** Where a buyer of this pass lands after paying. */
+  thankYouHref: string;
+};
+
+/* The VIP price, from its own env var so a ₹1 smoke test can move both.
+   ⚠️ SETTING NEXT_PUBLIC_PRICE_RUPEES ALONE LEAVES VIP AT ₹997. For a live
+   test of the upgrade path set this one too, or the OTO shows ₹1 beside ₹997
+   and the second card is the only thing that charges real money. */
+const RAW_VIP = Number(process.env.NEXT_PUBLIC_VIP_PRICE_RUPEES);
+export const VIP_PRICE_RUPEES =
+  Number.isFinite(RAW_VIP) && RAW_VIP > 0 ? RAW_VIP : 997;
+
+export const TIERS: Record<TierId, Tier> = {
+  standard: {
+    id: 'standard',
+    name: '5-Day Complete Health Reset Challenge',
+    shortName: '5-Day Complete Health Reset',
+    rupees: PRICE_RUPEES,
+    compareAtRupees: 2499,
+    badge: 'Included',
+    bullets: [
+      '5 days of live, doctor-led sessions with Dr. Peeyush Prabhat',
+      'Both daily slots: 6:30 AM or 7:30 PM IST, attend either',
+      'Day 1 to Day 4 health assessment and tracking',
+    ],
+    guides: true,
+    note: 'Live access only. Recordings are not included.',
+    thankYouHref: '/thank-you',
+  },
+  vip: {
+    id: 'vip',
+    name: '5-Day Complete Health Reset Challenge + VIP Access',
+    shortName: '5-Day Reset + VIP Access',
+    rupees: VIP_PRICE_RUPEES,
+    compareAtRupees: 4999,
+    badge: 'Recordings included',
+    ribbon: 'Most chosen',
+    /* The copy is explicit that this REPLACES the standard price rather than
+       adding to it, because "+ VIP Access" beside a second number reads as an
+       add-on and buyers assume ₹497 + ₹997. Kept verbatim. */
+    lead: `₹${VIP_PRICE_RUPEES.toLocaleString('en-IN')} total, not on top. Everything above, plus:`,
+    bullets: [
+      'Lifetime replay library: all 5 sessions, both slots',
+      '15-minute extended Q&A after each session with Dr. Peeyush',
+      'Priority real-time, on-camera breathing technique correction',
+    ],
+    /* The counterpart to the standard pass's "Live access only" line, and the
+       reason both cards can be the same height without padding one out: this
+       card had a note-shaped hole at the bottom and nothing in it.
+
+       It is not filler. It answers the question the replay library raises —
+       where the recordings actually turn up, and for how long — which is the
+       same answer the thank-you page gives, and it matches how the PDF guides
+       are handed over. */
+    note: 'Replays are shared in the WhatsApp group and stay available after the challenge ends.',
+    thankYouHref: '/thank-you/vip',
+  },
+};
+
+export const TIER_LIST: Tier[] = [TIERS.standard, TIERS.vip];
+
+/** The pass a visitor gets if they never choose: the cheaper one. */
+export const DEFAULT_TIER_ID: TierId = 'standard';
+
+/**
+ * Turn anything at all into a real tier. Used by the checkout page (reading a
+ * query string a human can edit) and by the create-order route (reading a JSON
+ * body anyone can forge), which is why it never throws and never trusts.
+ */
+export function resolveTier(v: unknown): Tier {
+  return v === 'vip' ? TIERS.vip : TIERS.standard;
+}
+
+/** ⚠️ FLAG FOR ATUL — three numbers in the supplied OTO copy disagree with
+ *  what is already on the site, rendered as given and listed here rather than
+ *  silently reconciled:
+ *
+ *  1. The OTO says "₹497 until Monday 5th October · then ₹997". The landing's
+ *     announcement bar says the price rises to ₹1599 (PRICE_RISES_TO above).
+ *     Two different "then" prices on one funnel.
+ *  2. That same line makes the standard pass ₹997 after the 5th — which is the
+ *     VIP price. After the deadline the two passes cost the same.
+ *  3. The OTO anchors the standard pass at ₹2,499. The landing's own value
+ *     stack (INCLUDED below) sums to ₹4,791 for what looks like the same
+ *     thing.
+ *
+ *  The deadline line is NOT rendered on the page for that reason — see the
+ *  note in app/oto/page.tsx. Everything else is verbatim. */
+export const OTO_DEADLINE_LINE = `₹${PRICE_RUPEES.toLocaleString('en-IN')} until Monday 5th October · then ₹997`;
+
+/** Where a landing CTA goes now: the pass chooser, not the payment. */
+export const OTO_HREF = '/oto';
+
+/** Where an OTO card sends a buyer once a pass is chosen. The tier rides as a
+ *  query param; the SERVER resolves the price from it. */
 export const CHECKOUT_HREF = '/checkout';
+export const checkoutHref = (tier: TierId) =>
+  tier === DEFAULT_TIER_ID ? CHECKOUT_HREF : `${CHECKOUT_HREF}?tier=${tier}`;
 
 /**
  * THE THREE CTA LABELS. There are exactly three, and every button on the site
@@ -177,3 +327,43 @@ export const INCLUDED: IncludedItem[] = [
 
 /** Summed, never typed. Equals the copy's ₹4,791. */
 export const INCLUDED_TOTAL = INCLUDED.reduce((n, item) => n + item.value, 0);
+
+/**
+ * The PDF guides, by name, derived from INCLUDED rather than listed again.
+ *
+ * The OTO card, the checkout summary and the value stack all name these three
+ * guides. Typing them out per surface is how "The 10-Minute DAILY Joint
+ * Mobility & Pain Relief Playbook" becomes "The 10-Minute Joint Mobility &
+ * Pain Relief Playbook" on one page and not another — a buyer then cannot
+ * tell whether the checkout is selling them the same thing the offer did.
+ *
+ * ⚠️ NOT "INSTANT ACCESS" (26 Sep 2026, Atul). The guides are handed over in
+ * the WhatsApp group at the END of the challenge, not on payment, so every
+ * surface that promised them immediately was promising the wrong thing. The
+ * word is gone from the OTO card and the checkout summary.
+ *
+ * It is NOT yet gone from the landing page, which still carries
+ * `tag: 'INSTANT ACCESS · INCLUDED'` on all three items below and a
+ * "GET INSTANT ACCESS TO" eyebrow over the toolkit section. Those are SHAPE's
+ * copy and are left for a copy pass rather than changed here — but they now
+ * contradict the delivery, and a buyer who reads them will email support on
+ * day one asking where the downloads are.
+ *
+ * `access: 'instant'` survives as the DISCRIMINATOR only: it is what tells a
+ * download apart from the live session, and the toolkit picks its icon from
+ * it. The value's NAME is a leftover from the same wrong assumption; renaming
+ * it to 'download' belongs in that same copy pass.
+ *
+ * ⚠️ DECLARED BELOW `TIERS`, AND THAT IS DELIBERATE. A `const` cannot be read
+ * before its initialiser runs, so `TIERS` carries a boolean flag (`guides`)
+ * and the components pull the names from here. Referencing this array inside
+ * the TIERS literal above would throw at module load.
+ */
+export const GUIDES = INCLUDED.filter(
+  (item) => item.access === 'instant',
+).map((item) => item.title);
+
+/** "3 PDF guides" — counted, never typed, for the same reason the total above
+ *  is summed. Adding a fourth guide to INCLUDED updates the label, the OTO
+ *  card and the checkout in one edit. */
+export const GUIDES_LABEL = `${GUIDES.length} PDF guides`;

@@ -25,7 +25,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import {
-  CHECKOUT_HREF,
+  OTO_HREF,
   CTA_LABEL_STICKY,
   CTA_NOTE_STICKY,
   START_DATE,
@@ -37,27 +37,54 @@ export default function StickyCta() {
      note above: this is the whole "no reveal delay" requirement. */
   const [show, setShow] = useState(true);
 
+  /* ── HIDE ON THE FINAL CTA, AND ON THE FOOTER ──────────────────────────
+     The bar is `position: fixed`, so it is out of flow and paints over
+     whatever the page ends with. There is no flow spacer (see below), which
+     is only safe while the bar is guaranteed to be hidden by the time the
+     bottom of the page is on screen.
+
+     Watching `[data-final]` ALONE did not guarantee that. It hides the bar
+     while the closing recap is in view, but once the reader scrolls past it
+     the recap stops intersecting, the bar comes back, and it comes back
+     exactly over the footer — which on this site carries the legal text and
+     the merchant-of-record line. The failure only shows at the very bottom of
+     the page, which is the part nobody scrolls to while building it.
+
+     So the FOOTER is observed too, and either one showing hides the bar.
+     Belt and braces: even if the recap is ever removed, retitled or has its
+     marker dropped, the footer rule still keeps the bar off the legal text. */
   useEffect(() => {
-    const final = document.querySelector('[data-final]');
-    if (!final) return;
+    const targets = [
+      document.querySelector('[data-final]'),
+      document.querySelector('footer'),
+    ].filter((el): el is Element => el !== null);
+
+    if (!targets.length) return;
+
+    /* One entry per target, so a target that scrolls out cannot clear a flag
+       another target still holds. Keyed by the element itself. */
+    const visible = new Set<Element>();
 
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.target === final) setShow(!e.isIntersecting);
+          if (e.isIntersecting) visible.add(e.target);
+          else visible.delete(e.target);
         }
+        setShow(visible.size === 0);
       },
       { threshold: 0 },
     );
 
-    io.observe(final);
+    targets.forEach((t) => io.observe(t));
     return () => io.disconnect();
   }, []);
 
   return (
     <>
-      {/* No spacer. The observer above hides the bar once the final CTA is in
-          view, so it is never on screen at the foot of the page and there is
+      {/* No spacer, and that is load-bearing on the observer above: the bar is
+          hidden by both the closing recap AND the footer, so it is never on
+          screen at the foot of the page and there is
           nothing to reserve room for. A spacer here rendered as dead space
           below the footer, which is exactly where it was most visible. */}
       <div
@@ -142,7 +169,7 @@ export default function StickyCta() {
           </p>
 
           <Link
-            href={CHECKOUT_HREF}
+            href={OTO_HREF}
             data-cta
             /* Full width on a phone, hugging its label from `sm` up. A pill
                that only spans half a 360px screen reads as secondary, and this

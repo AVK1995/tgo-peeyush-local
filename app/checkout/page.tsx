@@ -38,7 +38,8 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   ArrowLeft,
@@ -49,7 +50,14 @@ import {
   ShieldCheck,
 } from '@phosphor-icons/react/dist/ssr';
 
-import { CTA_NOTE, PRICE, PRICE_RUPEES, SESSION_TIMES_TZ, START_DATE } from '../_landing/offer';
+import {
+  CTA_NOTE,
+  GUIDES_LABEL,
+  SESSION_TIMES_TZ,
+  START_DATE,
+  resolveTier,
+  type Tier,
+} from '../_landing/offer';
 import PaymentLogos from '@/components/PaymentLogos';
 import SiteFooter from '@/components/SiteFooter';
 import { collectSignals } from '@/lib/client-signals';
@@ -130,7 +138,32 @@ type Fields = {
   occupation: string;
 };
 
+/**
+ * `useSearchParams` suspends, so the page body has to sit under a boundary or
+ * the whole route is forced dynamic and loses its static shell. Same shape the
+ * thank-you page already uses.
+ */
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <Checkout />
+    </Suspense>
+  );
+}
+
+function Checkout() {
+  /* ── WHICH PASS THIS CHECKOUT IS FOR ───────────────────────────────────
+     Read from `?tier=`, written by the OTO page. Anything unrecognised — a
+     truncated link, an edited URL, arriving at /checkout directly from an old
+     ad — resolves to the standard pass rather than erroring.
+
+     THIS VALUE IS FOR DISPLAY ONLY. It sets what the summary shows and what
+     the button says; it does NOT set what is charged. The id is posted to
+     create-order and the server resolves the rupees from it there, so editing
+     this query string changes which of two fixed prices is charged and nothing
+     else. See lib/checkout-config.ts. */
+  const tier = resolveTier(useSearchParams().get('tier'));
+
   const [f, setF] = useState<Fields>({
     firstName: '',
     lastName: '',
@@ -232,6 +265,10 @@ export default function CheckoutPage() {
           city: f.city.trim(),
           country: f.country,
           occupation: f.occupation,
+          /* The ID only. No amount is ever sent from here — the server looks
+             the price up from this string, which is why a tampered query
+             param can only ever swap between two fixed prices. */
+          tier: tier.id,
           ...collectSignals(),
         }),
       });
@@ -320,7 +357,18 @@ export default function CheckoutPage() {
            finishes in their bank app and never returns is still counted. This
            handler only moves the buyer on. */
         handler: (r: { razorpay_payment_id: string }) => {
-          window.location.href = `/thank-you?p=${encodeURIComponent(r.razorpay_payment_id)}`;
+          /* THE SERVER'S thankYouHref, not one built from the local `tier`.
+             The two agree in every normal case, but the server's is the one
+             derived from the tier it actually charged — so a tampered
+             `?tier=vip` that the server priced as standard lands the buyer on
+             the standard confirmation rather than on a VIP page promising
+             recordings they did not pay for. Falls back to the standard page
+             if an older response has no such field. */
+          const to =
+            typeof order.thankYouHref === 'string' && order.thankYouHref.startsWith('/')
+              ? order.thankYouHref
+              : '/thank-you';
+          window.location.href = `${to}?p=${encodeURIComponent(r.razorpay_payment_id)}`;
         },
       });
       rzp.open();
@@ -545,7 +593,7 @@ export default function CheckoutPage() {
                     can select, so the highlight was passing OVER the words
                     instead of behind them. */}
                 <span>
-                  {busy ? 'Taking you to payment…' : `Pay ${PRICE} & Join the Reset`}
+                  {busy ? 'Taking you to payment…' : `Pay ${inr(tier.rupees)} & Join the Reset`}
                 </span>
               </button>
 
@@ -591,7 +639,7 @@ export default function CheckoutPage() {
             </form>
 
             <div className="lg:sticky lg:top-8">
-              <OrderSummary />
+              <OrderSummary tier={tier} />
             </div>
           </div>
         </div>
@@ -635,7 +683,7 @@ function Header() {
       the same order: lead item, included list, subtotal / bonus value, the
       ruled Total, the method tile, then the guarantee line.
       Accordion below lg, always open from lg up. ───────────────────────── */
-function OrderSummary() {
+function OrderSummary({ tier }: { tier: Tier }) {
   const [open, setOpen] = useState(false);
   const [lead, ...bonuses] = RECAP;
   const bonusValue = VALUE_TOTAL - lead.value;
@@ -697,7 +745,10 @@ function OrderSummary() {
             className="text-[13.5px] font-semibold leading-snug sm:text-[14px]"
             style={{ color: C.ink }}
           >
-            {lead.title}
+            {/* The PASS's name, not the generic lead item. On the VIP pass
+                this is the difference between a summary that confirms what
+                was chosen and one that quietly shows the cheaper thing. */}
+            {tier.name}
           </p>
           <p className="mt-0.5 text-[11px] sm:text-[11.5px]" style={{ color: C.inkSoft }}>
             {START_DATE} · {SESSION_TIMES_TZ}
@@ -712,12 +763,51 @@ function OrderSummary() {
       </div>
 
       <div id="order-summary-details" className={`${open ? 'block' : 'hidden'} lg:block`}>
+        {/* ── WHAT THE UPGRADE ADDS ────────────────────────────────────────
+            Only on the VIP pass. These three lines are the entire difference
+            between the passes, and a buyer who just paid double for them
+            should see them itemised here rather than having to trust that the
+            upgrade registered. No prices against them: the OTO sells the pass
+            as one number, and inventing a value for each part would be a
+            figure nothing else on the site supports. */}
+        {tier.id === 'vip' ? (
+          <div className="mt-4 space-y-1.5">
+            <p
+              className="text-[10.5px] font-bold uppercase tracking-[0.16em]"
+              style={{ color: C.goldInk }}
+            >
+              VIP access included
+            </p>
+            <ul className="space-y-1.5 text-[12px] sm:text-[12.5px]" style={{ color: C.inkSoft }}>
+              {tier.bullets.map((b) => (
+                <li key={b} className="flex items-start gap-2">
+                  <CheckCircle
+                    weight="fill"
+                    className="mt-[3px] h-3.5 w-3.5 shrink-0"
+                    style={{ color: C.emeraldInk }}
+                  />
+                  <span className="flex-1 leading-snug">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-1.5">
           <p
             className="text-[10.5px] font-bold uppercase tracking-[0.16em]"
             style={{ color: C.inkSoft }}
           >
-            Free bonuses included
+            {/* Named the same way the OTO card names them. It read "Free
+                bonuses included" here while the pass chooser one click
+                earlier called them "3 PDF guides" — the same three files
+                under two headings, which invites the buyer to wonder whether
+                the bonuses are a fourth thing they are not getting.
+
+                NOT "instant access": they are handed over in the WhatsApp
+                group at the end of the challenge. See the note on GUIDES in
+                ../_landing/offer. Counted from INCLUDED, never typed. */}
+            {GUIDES_LABEL}
           </p>
           <ul className="space-y-1.5 text-[12px] sm:text-[12.5px]" style={{ color: C.inkSoft }}>
             {bonuses.map((r) => (
@@ -739,7 +829,7 @@ function OrderSummary() {
         <div className="space-y-2 text-[13.5px]">
           <div className="flex justify-between" style={{ color: C.inkSoft }}>
             <span>Subtotal</span>
-            <span className="tabular-nums">{inr(PRICE_RUPEES)}</span>
+            <span className="tabular-nums">{inr(tier.rupees)}</span>
           </div>
           <div className="flex justify-between" style={{ color: C.inkSoft }}>
             <span>Total bonus value</span>
@@ -771,10 +861,13 @@ function OrderSummary() {
             className="font-display text-[26px] font-extrabold leading-none tabular-nums sm:text-[32px]"
             style={{ color: C.goldDeep }}
           >
-            {PRICE}
+            {inr(tier.rupees)}
           </div>
+          {/* The anchor follows the PASS, not the landing page's bonus stack.
+              A VIP buyer seeing the standard ₹4,791 anchor beside a ₹997 total
+              is being shown the wrong saving. */}
           <s className="text-[12px] tabular-nums sm:text-[12.5px]" style={{ color: C.inkSoft }}>
-            {inr(VALUE_TOTAL)}
+            {inr(tier.compareAtRupees)}
           </s>
         </div>
       </div>
