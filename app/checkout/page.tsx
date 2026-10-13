@@ -17,6 +17,7 @@ import {
 } from '@phosphor-icons/react/dist/ssr';
 
 import {
+  BONUS_DELIVERY_NOTE,
   CTA_NOTE,
   DATES,
   LIST_PRICE,
@@ -271,7 +272,7 @@ export default function CheckoutPage() {
                 Where should we send your seat?
               </h2>
               <p className="mt-2 text-[12.5px] sm:text-[13px]" style={{ color: C.inkSoft }}>
-                Your session links, reminders and bonus guides go to these.
+                Your session links and reminders go to these. Bonuses are shared in the WhatsApp Community after Day 2.
               </p>
 
               <div className="mt-6 flex flex-col gap-4">
@@ -644,6 +645,9 @@ function OrderSummary() {
               </li>
             ))}
           </ul>
+          <p className="text-[11.5px] leading-snug" style={{ color: C.inkSoft }}>
+            {BONUS_DELIVERY_NOTE}
+          </p>
         </div>
 
         <div className="my-5 h-px" style={{ background: C.line }} />

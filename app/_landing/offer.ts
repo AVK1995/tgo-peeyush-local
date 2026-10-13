@@ -14,10 +14,13 @@ export const AUDIENCE_LINE =
   "For people who've tried everything - yet still struggle with recurring health issues";
 export const FORMAT = '2-Day Live, Doctor-Led Workshop';
 
-// ⚠️ PLACEHOLDER from the copy doc. The two session dates are not supplied yet.
-export const DATES = 'XX & YY October';
-export const SESSION_TIME = '11:00 AM - 12:30 PM';
-export const SESSION_TIME_TZ = '11:00 AM - 12:30 PM IST';
+/* Change weekly in Vercel env (then redeploy: NEXT_PUBLIC_* is inlined at build).
+   Blank or unset falls back to the defaults below. */
+const envText = (v: string | undefined, fallback: string) => (v || '').trim() || fallback;
+
+export const DATES = envText(process.env.NEXT_PUBLIC_WORKSHOP_DATES, '17th & 18th October');
+export const SESSION_TIME = envText(process.env.NEXT_PUBLIC_SESSION_TIME, '11:00 AM - 1:00 PM');
+export const SESSION_TIME_TZ = `${SESSION_TIME} IST`;
 
 // ⚠️ UNVERIFIED claim. Confirm a public Trustpilot profile carries 4.8.
 export const RATING = '4.8';
@@ -39,6 +42,9 @@ export const PROMISE_TEXT = 'Notice visible relief in your symptoms or get 100% 
 export const CTA_NOTE = `${PROMISE_NAME}: ${PROMISE_TEXT}`;
 
 export const WHATSAPP_INVITE = process.env.NEXT_PUBLIC_WHATSAPP_INVITE ?? '';
+
+/* All bonuses are released in the WhatsApp Community after Day 2, never at registration. */
+export const BONUS_DELIVERY_NOTE = 'All bonuses are shared in the WhatsApp Community after Day 2 of the workshop.';
 
 export type Bonus = {
   n: 1 | 2 | 3;

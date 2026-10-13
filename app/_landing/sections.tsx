@@ -25,7 +25,7 @@ import {
   PRESS_ROW_2,
   type ChangeKey,
 } from './content';
-import { BONUSES, OFFER_LINE, inr } from './offer';
+import { BONUSES, BONUS_DELIVERY_NOTE, OFFER_LINE, inr } from './offer';
 import { Band, C, Container, CtaBlock, Hl, SectionHeading } from './shared';
 import VideoGrid from './video-grid';
 
@@ -180,7 +180,10 @@ export function Bonuses() {
             </li>
           ))}
         </ul>
-        <p className="mx-auto mt-12 max-w-3xl text-center font-display text-[22px] font-bold leading-snug sm:text-[28px]" style={{ color: C.heading }}>
+        <p className="mx-auto mt-6 max-w-3xl text-center text-[14px] font-semibold sm:text-[15px]" style={{ color: C.inkSoft }}>
+          {BONUS_DELIVERY_NOTE}
+        </p>
+        <p className="mx-auto mt-8 max-w-3xl text-center font-display text-[22px] font-bold leading-snug sm:text-[28px]" style={{ color: C.heading }}>
           {OFFER_LINE}
         </p>
         <CtaBlock className="mt-8" />

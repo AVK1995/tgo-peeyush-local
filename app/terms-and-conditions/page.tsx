@@ -30,7 +30,8 @@ export default function TermsPage() {
       <p>
         Access to the {LEGAL.product}: two live, doctor-led sessions on {DATES},{' '}
         {SESSION_TIME_TZ}, together with the three bonus guides listed at
-        checkout. The fee is {PRICE}.
+        checkout. The bonus guides are shared in the WhatsApp Community after
+        Day 2 of the workshop, not at registration. The fee is {PRICE}.
       </p>
 
       <h2>3. Sessions and recordings</h2>

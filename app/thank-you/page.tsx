@@ -28,6 +28,7 @@ import {
 
 import { LEGAL } from '../_landing/legal';
 import {
+  BONUS_DELIVERY_NOTE,
   DATES,
   PRICE,
   PROMISE_NAME,
@@ -166,6 +167,9 @@ function ThankYou() {
               <strong className="text-white">
                 Your access to the workshop depends on joining this group.
               </strong>
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-white/80">
+              {BONUS_DELIVERY_NOTE}
             </p>
 
             {/* Renders in both states: a post-purchase page that asks for
