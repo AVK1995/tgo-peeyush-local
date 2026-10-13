@@ -17,7 +17,10 @@ import {
 } from '@phosphor-icons/react/dist/ssr';
 
 import {
+  CTA_NOTE,
   DATES,
+  LIST_PRICE,
+  LIST_PRICE_RUPEES,
   PRICE,
   PRICE_RUPEES,
   PROMISE_NAME,
@@ -30,6 +33,7 @@ import SiteFooter from '@/components/SiteFooter';
 import { collectSignals } from '@/lib/client-signals';
 import { trackAddToCart, trackBeginCheckout, trackInitiateCheckout } from '@/lib/track';
 
+import { SeatCount } from '../_landing/seat-count';
 import { C } from '../_landing/shared';
 import { RECAP, VALUE_TOTAL, inr } from './included';
 
@@ -140,7 +144,12 @@ export default function CheckoutPage() {
     e.preventDefault();
     setTouched(true);
     setFailed('');
-    if (!valid || busy) return;
+    if (!valid) {
+      // The sticky bar submits from below the form, so bring the errors into view.
+      document.getElementById('checkout-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (busy) return;
     setBusy(true);
 
     trackInitiateCheckout({
@@ -243,6 +252,7 @@ export default function CheckoutPage() {
 
           <div className="grid gap-8 lg:grid-cols-[1fr_minmax(320px,380px)] lg:items-start lg:gap-10">
             <form
+              id="checkout-form"
               onSubmit={startPayment}
               noValidate
               className="rounded-2xl p-6 sm:p-8"
@@ -397,8 +407,39 @@ export default function CheckoutPage() {
                 disabled={busy}
                 className="cta-pill mt-7 inline-flex min-h-[58px] w-full items-center justify-center px-6 font-display text-[16px] font-bold disabled:opacity-60"
               >
-                <span>{busy ? 'Taking you to payment…' : `Pay ${PRICE} & Book My Seat`}</span>
+                <span>
+                  {busy ? (
+                    'Taking you to payment…'
+                  ) : (
+                    <>
+                      Pay{' '}
+                      {LIST_PRICE && (
+                        <s className="mr-1 font-semibold opacity-70 decoration-2">{LIST_PRICE}</s>
+                      )}
+                      {PRICE} &amp; Book My Seat
+                    </>
+                  )}
+                </span>
               </button>
+
+              <p
+                className="mt-3 text-center text-[12.5px] font-semibold leading-snug"
+                style={{ color: C.ink }}
+              >
+                <ShieldCheck weight="fill" aria-hidden className="pp-promise-icon" style={{ color: C.accent }} />
+                {CTA_NOTE}
+              </p>
+
+              <p
+                className="mt-3 text-center font-display text-[15px] font-bold leading-snug sm:text-[16px]"
+                style={{ color: C.heading }}
+              >
+                Last{' '}
+                <span className="seat-chip">
+                  <SeatCount />
+                </span>{' '}
+                Seats Left - Booking Closes Once Full
+              </p>
 
               <div
                 className="mt-4 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[10.5px] sm:text-[11px]"
@@ -428,7 +469,8 @@ export default function CheckoutPage() {
               <PaymentMethods />
             </form>
 
-            <div className="lg:sticky lg:top-8">
+            {/* Phones see what they are paying for before the form. */}
+            <div className="order-first lg:order-none lg:sticky lg:top-8">
               <OrderSummary />
             </div>
           </div>
@@ -436,6 +478,52 @@ export default function CheckoutPage() {
       </section>
 
       <SiteFooter />
+
+      {/* Phones only: room for the docked bar, then the bar itself. */}
+      <div aria-hidden className="lg:hidden" style={{ height: 'calc(116px + env(safe-area-inset-bottom))' }} />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
+        style={{
+          background: C.surface,
+          borderTop: `1px solid ${C.line}`,
+          boxShadow: '0 -6px 24px rgba(6, 20, 28, 0.14)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        <p
+          className="px-4 pt-2.5 text-center font-display text-[13px] font-bold leading-snug"
+          style={{ color: C.heading }}
+        >
+          Last{' '}
+          <span className="seat-chip">
+            <SeatCount />
+          </span>{' '}
+          Seats Left - Booking Closes Once Full
+        </p>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 pb-3 pt-2">
+          <div className="shrink-0">
+            <p className="font-display text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: C.inkSoft }}>
+              Total
+            </p>
+            <p className="font-display text-[20px] font-extrabold leading-tight tabular-nums" style={{ color: C.ink }}>
+              {PRICE}
+            </p>
+            {LIST_PRICE && (
+              <s className="block text-[12px] font-semibold leading-none decoration-2" style={{ color: C.inkSoft }}>
+                {LIST_PRICE}
+              </s>
+            )}
+          </div>
+          <button
+            type="submit"
+            form="checkout-form"
+            disabled={busy}
+            className="cta-pill inline-flex min-h-[56px] flex-1 items-center justify-center px-3 text-center font-display text-[15px] font-bold leading-tight disabled:opacity-60"
+          >
+            {busy ? 'Opening…' : 'Book My Seat Now - 81% Off'}
+          </button>
+        </div>
+      </div>
     </main>
   );
 }
@@ -523,6 +611,14 @@ function OrderSummary() {
           className="shrink-0 text-right font-display text-[14px] font-extrabold tabular-nums sm:text-[15px]"
           style={{ color: C.ink }}
         >
+          {LIST_PRICE && (
+            <s
+              className="block text-[11.5px] font-semibold decoration-2"
+              style={{ color: C.inkSoft, textDecorationColor: C.error }}
+            >
+              {LIST_PRICE}
+            </s>
+          )}
           {PRICE}
         </div>
       </div>
@@ -553,10 +649,23 @@ function OrderSummary() {
         <div className="my-5 h-px" style={{ background: C.line }} />
 
         <div className="space-y-2 text-[13.5px]">
-          <div className="flex justify-between" style={{ color: C.inkSoft }}>
-            <span>Subtotal</span>
-            <span className="tabular-nums">{inr(PRICE_RUPEES)}</span>
-          </div>
+          {LIST_PRICE_RUPEES ? (
+            <>
+              <div className="flex justify-between" style={{ color: C.inkSoft }}>
+                <span>Regular price</span>
+                <span className="tabular-nums">{inr(LIST_PRICE_RUPEES)}</span>
+              </div>
+              <div className="flex justify-between font-semibold" style={{ color: C.ink }}>
+                <span>Today&apos;s discount</span>
+                <span className="tabular-nums">−{inr(LIST_PRICE_RUPEES - PRICE_RUPEES)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between" style={{ color: C.inkSoft }}>
+              <span>Subtotal</span>
+              <span className="tabular-nums">{inr(PRICE_RUPEES)}</span>
+            </div>
+          )}
           <div className="flex justify-between" style={{ color: C.inkSoft }}>
             <span>Total bonus value</span>
             <s
@@ -585,6 +694,14 @@ function OrderSummary() {
           className="text-right font-display text-[26px] font-extrabold leading-none tabular-nums sm:text-[32px]"
           style={{ color: C.accent }}
         >
+          {LIST_PRICE && (
+            <s
+              className="mr-2 text-[15px] font-semibold decoration-2 sm:text-[17px]"
+              style={{ color: C.onDarkMute }}
+            >
+              {LIST_PRICE}
+            </s>
+          )}
           {PRICE}
         </div>
       </div>
@@ -604,14 +721,9 @@ function OrderSummary() {
         </div>
       </div>
 
-      <p
-        className="mt-4 flex items-start justify-center gap-1.5 text-center text-[12px] leading-snug"
-        style={{ color: C.inkSoft }}
-      >
-        <ShieldCheck weight="fill" className="mt-px h-3.5 w-3.5 shrink-0" style={{ color: C.ink }} />
-        <span>
-          <strong style={{ color: C.ink }}>{PROMISE_NAME}:</strong> {PROMISE_TEXT}
-        </span>
+      <p className="mt-4 text-center text-[12px] leading-snug" style={{ color: C.inkSoft }}>
+        <ShieldCheck weight="fill" aria-hidden className="pp-promise-icon" style={{ color: C.accent }} />
+        <strong style={{ color: C.ink }}>{PROMISE_NAME}:</strong> {PROMISE_TEXT}
       </p>
     </div>
   );

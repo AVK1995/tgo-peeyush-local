@@ -25,8 +25,11 @@ export const RATING_LABEL = 'Trust Pilot Rating';
 
 export const CHECKOUT_HREF = '/checkout';
 
-// ⚠️ "81% Off" names no original price. Confirm the regular price it is off.
 export const CTA_LABEL = 'Book My Seat Now - 81% Off Today!';
+
+/* The regular price the checkout strikes through; null hides the strike. */
+export const LIST_PRICE_RUPEES: number | null = 521;
+export const LIST_PRICE = LIST_PRICE_RUPEES ? inr(LIST_PRICE_RUPEES) : '';
 
 /** The seat count shown on load; seat-count.tsx steps it down from here. */
 export const SEATS_START = 44;
