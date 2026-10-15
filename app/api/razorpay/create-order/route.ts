@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 
 import { ATTR_COOKIE, packJsonNote, readAttrCookie } from '@/lib/attribution-edge';
-import { CHECKOUT_CONFIG, isTestMode } from '@/lib/checkout-config';
+import { CHECKOUT_CONFIG, isTestMode, orderPricing } from '@/lib/checkout-config';
 import { readClientIp, readClientUserAgent, readRequestCookie } from '@/lib/request-signals';
 
 /**
@@ -66,6 +66,17 @@ export async function POST(req: Request) {
   }
 
   const utm = (body.utm ?? {}) as Record<string, string | undefined>;
+
+  /* ── WHAT THIS ORDER COSTS ──────────────────────────────────────────────
+     The browser sends add-on IDS and nothing else about money. The amount is
+     resolved here from those ids, so the only thing a tampered request can
+     change is WHICH of four fixed baskets is charged — and an unrecognised
+     id is dropped rather than throwing, so a mangled request sells the plain
+     seat instead of failing at the till.
+
+     If this ever reads a price from `body`, the ₹1,500 session can be bought
+     for ₹1 from devtools. See the note on orderPricing in checkout-config. */
+  const pricing = orderPricing(body.addons);
 
   /* Identity for the fulfilment record. Minted HERE, before payment, so a
      lead can be tracked from the moment the form is submitted rather than
@@ -135,6 +146,21 @@ export async function POST(req: Request) {
        orderKind in lib/checkout-config.ts. */
     kind: CHECKOUT_CONFIG.orderKind,
     lead_id: leadId,
+    /* ── WHAT WAS ACTUALLY BOUGHT ───────────────────────────────────────
+       "", "recording", "call" or "recording,call" — the SERVER's resolution
+       of the basket, never the browser's claim.
+
+       It earns a top-level readable key for the same reason `name` and
+       `email` have one: FULFILMENT BRANCHES ON IT. A buyer who paid for the
+       recordings is owed them and a buyer who did not must not get them, and
+       whoever opens the payment in the Razorpay dashboard to sort out a
+       refund needs to see which bundle it was without decoding a bundle.
+
+       Deliberately NOT inferred from the amount downstream: ₹599 identifies
+       "seat + recordings" only until the first discount code or price change,
+       and a silent mis-inference here either withholds something paid for or
+       hands over something that was not. */
+    addons: pricing.addonsCsv,
     /* Readable in the Razorpay dashboard, for whoever opens a payment at 11pm
        trying to work out whose refund it is. */
     name: truncate(`${firstName} ${lastName}`.trim()),
@@ -243,7 +269,9 @@ export async function POST(req: Request) {
         authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`,
       },
       body: JSON.stringify({
-        amount: CHECKOUT_CONFIG.amountPaise,
+        /* Seat plus whatever add-ons survived resolveAddons, in paise.
+           Never a figure that came from the request body. */
+        amount: pricing.paise,
         currency: CHECKOUT_CONFIG.currency,
         /* THIS CLIENT'S prefix, not the `kz_` one the scaffold was copied from.
            It is what a receipt is searched by in the Razorpay dashboard, so a
@@ -291,6 +319,15 @@ export async function POST(req: Request) {
       amount: order.amount,
       currency: order.currency,
       keyId, // publishable by design: the browser needs it to open the sheet
+      /* Echoed back so the payment sheet's description names the basket the
+         SERVER priced, not the one the browser thinks it ticked. If the two
+         ever disagree, the buyer sees what they are actually being charged
+         for. */
+      addons: pricing.addons,
+      bundle: pricing.bundle,
+      productName: pricing.productName,
+      /* Which of the four thank-you routes this order lands on. */
+      thankYouPath: pricing.thankYouPath,
     });
   } catch (e) {
     console.error('[create-order] failed', e);

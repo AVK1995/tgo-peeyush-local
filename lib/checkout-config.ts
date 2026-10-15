@@ -1,3 +1,11 @@
+import {
+  addonsTotalRupees,
+  bundleCode,
+  bundleName,
+  resolveAddons,
+  thankYouPath,
+  type AddonId,
+} from '@/app/_landing/addons';
 import { PRICE_RUPEES, WORKSHOP_NAME } from '@/app/_landing/offer';
 
 /* The one origin literal in the codebase. `||` rather than `??` so a blank
@@ -28,6 +36,47 @@ export const CHECKOUT_CONFIG = {
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
   },
 } as const;
+
+/**
+ * THE ORDER, PRICED SERVER-SIDE.
+ *
+ * Takes whatever the browser (or a Razorpay note) claims the basket is, and
+ * returns what it actually costs plus everything downstream needs to name it.
+ * The seat price is never optional; only the add-ons vary.
+ *
+ * ⚠️ NEVER GIVE THIS AN `amount` PARAMETER, and never add one to the route
+ * that calls it. The input is attacker-controlled: `resolveAddons` reduces it
+ * to at most two known ids and the rupees are looked up here, which is the
+ * difference between a tampered request buying the wrong BASKET and one
+ * buying the ₹1,500 session for ₹1.
+ */
+export const orderPricing = (addonsInput: unknown) => {
+  const addons: AddonId[] = resolveAddons(addonsInput);
+  const addonRupees = addonsTotalRupees(addons);
+  const rupees = PRICE_RUPEES + addonRupees;
+
+  return {
+    addons,
+    /* "" when nothing was added, so the note key is cheap and the Pabbly
+       column is blank rather than the string "none". */
+    addonsCsv: addons.join(','),
+    baseRupees: PRICE_RUPEES,
+    addonRupees,
+    rupees,
+    /* Rounded, not truncated: a price set to a fractional rupee in the env
+       would otherwise lose a paisa and mismatch the displayed total. */
+    paise: Math.round(rupees * 100),
+    bundle: bundleCode(addons),
+    /* The route this buyer is sent to after paying, decided HERE from the
+       basket the server priced — not built in the browser from what it
+       thinks it ticked. If the two ever disagree, the buyer sees the page
+       matching what they were actually charged for. */
+    thankYouPath: thankYouPath(addons),
+    productName: bundleName(WORKSHOP_NAME, addons),
+    hasRecording: addons.includes('recording'),
+    hasCall: addons.includes('call'),
+  };
+};
 
 export const capiReady = () =>
   Boolean(CHECKOUT_CONFIG.meta.pixelId && CHECKOUT_CONFIG.meta.accessToken);

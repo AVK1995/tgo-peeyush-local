@@ -36,9 +36,18 @@ export default function TermsPage() {
 
       <h2>3. Sessions and recordings</h2>
       <ul>
+        {/* ⚠️ AMENDED 15 Oct 2026 because the checkout now sells recordings
+            as a paid add-on. The previous wording — "Recordings will not be
+            provided" — was a term of service directly contradicting a product
+            on sale, which is the worst place for that contradiction to sit.
+            This states the default and the exception and nothing more; any
+            wider rewrite is the client's lawyer's call, not this file's. */}
         <li>
-          The workshop is designed as a live, guided experience. Recordings will
-          not be provided, so attend both sessions live from start to finish.
+          The workshop is designed as a live, guided experience, so attend both
+          sessions live from start to finish. Recordings are not included with
+          a standard seat. Where the Day 1 and Day 2 recordings have been
+          purchased as an add-on, they are provided after the workshop for your
+          personal use only.
         </li>
         <li>
           We may move a session for reasons outside our control. Registered

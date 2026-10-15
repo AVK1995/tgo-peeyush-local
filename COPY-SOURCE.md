@@ -200,6 +200,16 @@ You should continue any prescribed medicines or treatments unless your doctor ad
 The workshop is designed as a live, guided experience, because practising along with Dr. Peeyush is an important part of getting the most from it.
 Recordings will not be provided, so we strongly recommend attending both sessions live from start to finish.
 
+> ⚠️ **SUPERSEDED 15 Oct 2026 — do not re-import this answer as written.**
+> The checkout now sells the Day 1 + Day 2 recordings as a **paid add-on**, so
+> "Recordings will not be provided" is no longer true and contradicts a product
+> on sale. The live wording is in `app/_landing/content.ts` (FAQ 5) and the
+> matching clause is in `app/terms-and-conditions/page.tsx` §3.
+>
+> Recordings are **never** offered free: the free bonuses remain the three PDFs
+> only (Booklet, Blueprint, Toolkit). If this doc is ever used to regenerate the
+> FAQ, carry the live wording across, not the line above.
+
 **6. What if I attend but don't find the workshop helpful?**
 You're protected by our Get-Relief Promise.
 Attend both sessions, practise the techniques as taught and experience the method for yourself.

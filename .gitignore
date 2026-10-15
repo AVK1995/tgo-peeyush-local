@@ -6,3 +6,8 @@ out
 .env.example
 .DS_Store
 *.tsbuildinfo
+
+# Confirmation email and WhatsApp templates. Kept out of the repo on request:
+# they are working copies for pasting into Pabbly, not application code, and
+# they carry the funnel's live group invites once the links are filled in.
+/message-templates

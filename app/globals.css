@@ -692,8 +692,248 @@
   50% { box-shadow: 0 6px 22px rgba(6, 182, 212, 0.55), 0 0 0 4px rgba(6, 182, 212, 0.18); }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ *  THE ADD-ON CARDS  (checkout upsells)
+ *
+ *  Two optional extras the buyer ticks. The job of the motion here is to say
+ *  "this is tickable" on a page where everything else is a form field — an
+ *  untouched upsell that looks like a static panel is simply not seen.
+ *
+ *  ⚠️ THE PULSE STOPS ONCE THE CARD IS SELECTED, and that is the whole point.
+ *  A box that keeps pulsing after it has been ticked reads as an unresolved
+ *  error, and two of them pulsing at once on a 390px screen is a fairground.
+ *  `[data-on='true']` kills it and swaps in a solid selected state.
+ * ═══════════════════════════════════════════════════════════════════════ */
+.pp-addon {
+  position: relative;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 18px;
+  padding: 16px;
+  background: #FFFFFF;
+  /* Dashed while unselected: the universally understood "slot you may fill",
+     and it distinguishes the card from the solid-bordered form fields above
+     it without needing another colour. */
+  border: 1.5px dashed rgba(6, 182, 212, 0.55);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  animation: ppAddonPulse 2.8s ease-in-out infinite;
+}
+.pp-addon:hover { border-color: rgba(6, 182, 212, 0.9); }
+.pp-addon:focus-within {
+  outline: 3px solid rgba(6, 182, 212, 0.45);
+  outline-offset: 2px;
+}
+.pp-addon[data-on='true'] {
+  animation: none;
+  border-style: solid;
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.06);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+/* Staggered, so two unticked cards breathe out of phase. In sync they read as
+   one blinking block; offset, each one reads as its own object. */
+.pp-addon--b { animation-delay: 1.4s; }
+
+@keyframes ppAddonPulse {
+  0%, 100% { box-shadow: 0 2px 10px rgba(6, 182, 212, 0.12); }
+  50% { box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3), 0 0 0 4px rgba(6, 182, 212, 0.12); }
+}
+
+/* The tick box. A drawn square, because the real <input> is visually hidden
+   so the whole card can be the hit area while keeping native checkbox
+   semantics (space to toggle, announced state, form participation). */
+.pp-addon-box {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(6, 182, 212, 0.55);
+  background: #FFFFFF;
+  color: transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.pp-addon[data-on='true'] .pp-addon-box {
+  background: #10B981;
+  border-color: #10B981;
+  color: #FFFFFF;
+}
+
+/* The flag pill, with the live dot. Same object as the announcement strip's
+   dot so the page has one "live/now" signal rather than two. */
+.pp-addon-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: #06141C;
+  color: #FFFFFF;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pp-addon-flag--accent { background: #10B981; color: #06141C; }
+.pp-addon-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: ppDotPulse 1.8s ease-in-out infinite;
+}
+@keyframes ppDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.72); }
+}
+
+/* The price delta, e.g. "+ ₹500". Nudged on selection rather than animated:
+   a number that moves while you are reading it is a number you re-read. */
+.pp-addon-delta {
+  font-weight: 800;
+  white-space: nowrap;
+  color: #0E7490;
+  transition: color 0.2s ease;
+}
+.pp-addon[data-on='true'] .pp-addon-delta { color: #047857; }
+
+/* The "tap to add" footer line, which becomes the confirmation once ticked.
+   Both strings are rendered and swapped by opacity rather than conditionally
+   mounted, so the card's height never changes on tick — a card that grows by
+   a line when selected shifts the one below it under the user's thumb. */
+.pp-addon-swap { position: relative; display: block; }
+.pp-addon-swap > span {
+  display: block;
+  transition: opacity 0.2s ease;
+}
+.pp-addon-swap > span + span { position: absolute; inset: 0; }
+.pp-addon[data-on='true'] .pp-addon-swap > span:first-child { opacity: 0; }
+.pp-addon[data-on='false'] .pp-addon-swap > span + span { opacity: 0; }
+
+/* ── THE SAME TWO ADD-ONS, INSIDE THE DOCKED BAR (phones) ────────────────
+   The full cards sit a long way down a 390px checkout — below six form
+   fields — so on a phone the upsell is only seen by someone who scrolls
+   past the thing they came to do. These are the same two controls, bound to
+   the same state, always on screen.
+
+   ⚠️ ONE LINE, AND IT HAS TO STAY ONE LINE. The dock reserves its own
+   measured height, so every row added here is page the buyer loses. The
+   flag pill, the label and the price are sized to fit 320px with the label
+   truncating first — it is the only part that can be shortened without
+   losing meaning, because the price and the "what is this" pill cannot. */
+.pp-addon-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 7px 10px;
+  background: #FFFFFF;
+  border: 1.5px dashed rgba(6, 182, 212, 0.55);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  /* Gentler and slower than the card's. Two pulses on one screen — the card
+     above and the row below — would be a fairground, and this one is always
+     on screen where the card is not. */
+  animation: ppMiniPulse 3.4s ease-in-out infinite;
+}
+.pp-addon-mini--b { animation-delay: 1.7s; }
+.pp-addon-mini[data-on='true'] {
+  animation: none;
+  border-style: solid;
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.08);
+}
+.pp-addon-mini:focus-within {
+  outline: 3px solid rgba(6, 182, 212, 0.45);
+  outline-offset: 2px;
+}
+@keyframes ppMiniPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.16); }
+}
+
+/* The small tick. Same object as the card's, two sizes down. */
+.pp-addon-box--sm {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border-width: 2px;
+}
+.pp-addon-mini[data-on='true'] .pp-addon-box {
+  background: #10B981;
+  border-color: #10B981;
+  color: #FFFFFF;
+}
+
+/* Tighter than the card's pill: at 390px the row is box + pill + label +
+   price, and the pill is the only one of the four that can give up space
+   without becoming unreadable. */
+.pp-addon-flag--sm {
+  padding: 2px 7px 2px 6px;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  gap: 4px;
+}
+.pp-addon-flag--sm .pp-addon-dot { width: 5px; height: 5px; }
+
+/* The themed dropdown's popup. A short rise rather than a fade: it has to
+   read as coming OUT of the field it belongs to, which a fade alone does
+   not convey. `top` origin flips with the list when it opens upward. */
+.pp-select-pop {
+  animation: ppSelectIn 0.14s ease-out;
+  transform-origin: top center;
+}
+.pp-select-pop.bottom-full { transform-origin: bottom center; }
+@keyframes ppSelectIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* The docked total on phones. It slides up once rather than on every total
+   change: re-animating on each tick would make the bar twitch while the
+   buyer is still deciding. */
+.pp-dock {
+  animation: ppDockUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ppDockUp {
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+/* The total itself flashes when it changes, keyed off a React `key` so the
+   animation re-runs on every new value. This is the one moving thing that
+   SHOULD re-fire per tick: it is the feedback that the tick did something. */
+.pp-total-flash { animation: ppTotalFlash 0.5s ease-out; }
+@keyframes ppTotalFlash {
+  0% { transform: scale(1); color: #10B981; }
+  40% { transform: scale(1.1); color: #10B981; }
+  100% { transform: scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cta-pill--hero { animation: none; }
+  /* The add-on cards keep their dashed border and their solid selected
+     state; only the breathing stops. The information survives, the motion
+     does not — which is the whole contract of this media query. */
+  .pp-addon,
+  .pp-addon-mini,
+  .pp-addon-dot,
+  .pp-dock,
+  .pp-total-flash,
+  .pp-select-pop {
+    animation: none;
+  }
+  .pp-addon,
+  .pp-addon-mini,
+  .pp-addon-box,
+  .pp-addon-delta,
+  .pp-addon-swap > span {
+    transition: none;
+  }
   .pp-rail {
     overflow-x: auto;
     -webkit-mask-image: none;

@@ -41,10 +41,74 @@ export const PROMISE_NAME = 'Get-Relief Promise';
 export const PROMISE_TEXT = 'Notice visible relief in your symptoms or get 100% refund!';
 export const CTA_NOTE = `${PROMISE_NAME}: ${PROMISE_TEXT}`;
 
+/* The main community every buyer joins: session links, reminders, bonuses. */
 export const WHATSAPP_INVITE = process.env.NEXT_PUBLIC_WHATSAPP_INVITE ?? '';
+
+/**
+ * The SEPARATE group the Day 1 + Day 2 recordings are delivered in, for
+ * buyers who paid for the recordings add-on.
+ *
+ * ⚠️ A DIFFERENT GROUP FROM `WHATSAPP_INVITE`, and it has to stay that way.
+ * The recordings are a paid extra; posting them in the main community hands
+ * them to every ₹99 buyer who did not pay, which is both a refund argument
+ * from the people who did and the end of the add-on as a product.
+ *
+ * ⚠️ REQUIRED BEFORE THE RECORDINGS ADD-ON GOES LIVE. Empty renders the card
+ * with a visibly disabled button and a "write to us" fallback rather than a
+ * dead link — but that is a failure state, not a launch state.
+ */
+export const WHATSAPP_RECORDINGS_INVITE =
+  process.env.NEXT_PUBLIC_WHATSAPP_RECORDINGS_INVITE ?? '';
+
+/**
+ * The booking page where a private-session buyer picks their slot — a
+ * Calendly/Cal.com-style link, opened in a new tab so the buyer does not lose
+ * this page (which is still carrying their other joining steps).
+ *
+ * ⚠️ REQUIRED BEFORE THE 1-ON-1 ADD-ON GOES LIVE. Same failure handling as
+ * above: an empty value shows a disabled card with the support address rather
+ * than a button that goes nowhere.
+ */
+export const CALL_BOOKING_URL = process.env.NEXT_PUBLIC_CALL_BOOKING_URL ?? '';
 
 /* All bonuses are released in the WhatsApp Community after Day 2, never at registration. */
 export const BONUS_DELIVERY_NOTE = 'All bonuses are shared in the WhatsApp Community after Day 2 of the workshop.';
+
+/* ── WHEN THE TWO PAID ADD-ONS ARRIVE ─────────────────────────────────────
+   Declared once each, because both answer a question a buyer asks BEFORE
+   paying and again the moment after. The checkout card, the thank-you card
+   and the FAQ all render these strings rather than paraphrasing them: three
+   paraphrases of a delivery promise is three slightly different promises, and
+   the one the buyer quotes back is always the most generous.
+
+   ⚠️ "After the final session on Day 2" is deliberately phrased against the
+   SESSION, not a date. DATES is env-driven and moves per cohort; this line
+   stays true whenever the workshop runs. */
+export const RECORDING_DELIVERY_NOTE =
+  'Recordings are shared right after the final session on Day 2, once the workshop ends.';
+
+export const CALL_BOOKING_NOTE =
+  'Book any time that suits you, before or after the workshop.';
+
+/**
+ * How every link a buyer needs actually reaches them.
+ *
+ * ⚠️ THE BOOKING LINK IS NOT POSTED IN ANY WHATSAPP GROUP, and the copy has
+ * to say so. The group invites are, by their nature, group links; the 1-on-1
+ * booking link is personal and lives in three places only — the thank-you
+ * page, the confirmation email and the confirmation WhatsApp message.
+ *
+ * Saying it matters because the rest of this funnel trains the opposite
+ * expectation: session links come in the group, bonuses come in the group,
+ * recordings come in the group. A buyer who has read all that will sit
+ * waiting for a booking link in a group it is never going to appear in, and
+ * then ask for a refund on a session they could have booked on day one.
+ */
+export const LINKS_DELIVERY_NOTE =
+  'Every link here is also in your confirmation email and WhatsApp message, so you can come back to them any time.';
+
+export const CALL_LINK_LOCATION_NOTE =
+  'Your booking link is on this page, in your email and in your WhatsApp message. It is not posted in any group.';
 
 export type Bonus = {
   n: 1 | 2 | 3;

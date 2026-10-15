@@ -182,10 +182,24 @@ export const FAQS: { q: string; a: string[] }[] = [
     ],
   },
   {
+    /* ⚠️ REWRITTEN 15 Oct 2026, and it HAD to be. This answer read
+       "Recordings will not be provided", which was true until the checkout
+       started selling them as a paid add-on. Leaving it would have had the
+       FAQ deny, on the page that makes the sale, the exact thing being sold
+       one click later — a refund request with the site's own words attached.
+
+       The live-first framing is kept deliberately: the recordings are an
+       extra, not a substitute for attending, and the answer should not start
+       reading as permission to skip the workshop. Flagged for Atul as a copy
+       change rather than a silent edit. */
     q: '5. Will I get recordings if I miss the live workshop?',
     a: [
       'The workshop is designed as a live, guided experience, because practising along with Dr. Peeyush is an important part of getting the most from it.',
-      'Recordings will not be provided, so we strongly recommend attending both sessions live from start to finish.',
+      'Recordings are not included with your seat by default, so we strongly recommend attending both sessions live from start to finish. If you would like to keep them, you can add the Day 1 and Day 2 recordings at checkout.',
+      /* The WHEN, not just the whether. Asked here because this is where the
+         question is asked before anyone pays, and "recordings" without a
+         delivery time is read as "instantly". */
+      'If you add them, the recordings are shared right after the final session on Day 2, once the workshop ends. They are posted in a separate WhatsApp group for people who added them, and they are yours to keep.',
     ],
   },
   {

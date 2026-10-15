@@ -10,12 +10,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   CaretDown,
+  Check,
   CheckCircle,
   CreditCard,
   Lock,
   ShieldCheck,
 } from '@phosphor-icons/react/dist/ssr';
 
+import {
+  ADDONS,
+  ADDON_BY_ID,
+  addonsTotalRupees,
+  type AddonId,
+} from '../_landing/addons';
 import {
   BONUS_DELIVERY_NOTE,
   CTA_NOTE,
@@ -36,6 +43,7 @@ import { trackAddToCart, trackBeginCheckout, trackInitiateCheckout } from '@/lib
 
 import { SeatCount } from '../_landing/seat-count';
 import { C } from '../_landing/shared';
+import { ThemedSelect } from './themed-select';
 import { RECAP, VALUE_TOTAL, inr } from './included';
 
 declare global {
@@ -115,6 +123,49 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState('');
 
+  /* ── THE BASKET ────────────────────────────────────────────────────────
+     A Set of add-on ids, empty by default: nothing is pre-ticked. A
+     pre-selected upsell is a charge the buyer did not choose, and it is the
+     single fastest way to earn a chargeback on a ₹99 funnel.
+
+     DISPLAY ONLY. The ids are posted to create-order and the server prices
+     them from its own table, so every number below is a preview of what the
+     server will charge, never the input to it. */
+  const [addons, setAddons] = useState<Set<AddonId>>(new Set());
+  const addonIds = useMemo(
+    /* Read in ADDONS order, not insertion order, so the summary lines and the
+       product name always read the same way round. */
+    () => ADDONS.map((a) => a.id).filter((id) => addons.has(id)),
+    [addons],
+  );
+  const addonRupees = addonsTotalRupees(addonIds);
+  const totalRupees = PRICE_RUPEES + addonRupees;
+
+  const toggleAddon = (id: AddonId) =>
+    setAddons((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  /* The docked bar reserves its own measured height. It gains a line when an
+     add-on is ticked, so any constant is right in one of four states and
+     leaves the footer's legal text under the bar in the others.
+     ResizeObserver rather than a resize listener: what changes is the BAR,
+     not the window. */
+  const dockRef = useRef<HTMLDivElement>(null);
+  const [dockHeight, setDockHeight] = useState(0);
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el) return;
+    const measure = () => setDockHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   /* Arrival: AddToCart + begin_checkout, ref-guarded against StrictMode's
      double effect. The only Meta event a direct arrival ever produces. */
   const arrived = useRef(false);
@@ -181,6 +232,10 @@ export default function CheckoutPage() {
           city: f.city.trim(),
           country: f.country,
           occupation: f.occupation,
+          /* IDS ONLY. No amount is ever sent from here — the server looks the
+             prices up, which is why a tampered request can only ever swap
+             between four fixed baskets. */
+          addons: addonIds,
           ...collectSignals(),
         }),
       });
@@ -202,7 +257,13 @@ export default function CheckoutPage() {
         amount: order.amount,
         currency: order.currency,
         name: 'Dr. Peeyush Prabhat',
-        description: WORKSHOP_NAME,
+        /* The SERVER's product name, so the payment sheet describes the
+           basket that was actually priced. Falls back to the workshop name if
+           an older response has no such field. */
+        description:
+          typeof order.productName === 'string' && order.productName
+            ? order.productName
+            : WORKSHOP_NAME,
         prefill: {
           name: `${f.firstName.trim()} ${f.lastName.trim()}`.trim(),
           email: f.email.trim(),
@@ -215,7 +276,25 @@ export default function CheckoutPage() {
         theme: { color: C.dark },
         modal: { ondismiss: () => setBusy(false) },
         handler: (r: { razorpay_payment_id: string }) => {
-          window.location.href = `/thank-you?p=${encodeURIComponent(r.razorpay_payment_id)}`;
+          /* One of four real routes — /thank-you, -recording, -private,
+             -complete — chosen by the SERVER from the basket it priced, not
+             built here from what the browser thinks it ticked. If the two
+             ever disagree, the buyer sees the page matching what they were
+             actually charged for.
+
+             `?p=` is the payment id and is OPTIONAL on every one of those
+             pages: it drives the GA4 purchase ping and the receipt line and
+             nothing else, so the URLs stay shareable and testable by hand.
+
+             None of this entitles anything. These pages are a receipt and a
+             set of instructions; the webhook proves the sale and triggers
+             fulfilment, so opening a route directly changes only what a
+             stranger reads. */
+          const path =
+            typeof order.thankYouPath === 'string' && order.thankYouPath.startsWith('/')
+              ? order.thankYouPath
+              : '/thank-you';
+          window.location.href = `${path}?p=${encodeURIComponent(r.razorpay_payment_id)}`;
         },
       });
       rzp.open();
@@ -272,7 +351,13 @@ export default function CheckoutPage() {
                 Where should we send your seat?
               </h2>
               <p className="mt-2 text-[12.5px] sm:text-[13px]" style={{ color: C.inkSoft }}>
-                Your session links and reminders go to these. Bonuses are shared in the WhatsApp Community after Day 2.
+                {/* The email and number are not just for reminders now: the
+                    confirmation sent to them carries every group invite and,
+                    for 1-on-1 buyers, the booking link that is deliberately
+                    never posted in a group. Saying so here is also why
+                    someone bothers to type a real address. */}
+                Your confirmation, group invites and session reminders go to
+                these. Bonuses are shared in the WhatsApp Community after Day 2.
               </p>
 
               <div className="mt-6 flex flex-col gap-4">
@@ -327,20 +412,22 @@ export default function CheckoutPage() {
                     WhatsApp number
                   </span>
                   <div className="flex gap-2">
-                    <select
-                      className="w-[124px] shrink-0 rounded-xl px-3 py-3 text-[15px] outline-none"
-                      autoComplete="tel-country-code"
-                      aria-label="Country dialling code"
+                    {/* Narrower than the 124px the native select needed: the
+                        button now shows just the dial code, so the width goes
+                        back to the number field — the one actually typed in.
+                        The open list still names the country. */}
+                    <ThemedSelect
+                      className="w-[96px] shrink-0"
+                      buttonClassName="px-3"
+                      ariaLabel="Country dialling code"
                       value={f.country}
-                      onChange={(e) => setF((s) => ({ ...s, country: e.target.value }))}
-                      style={{ background: C.page, color: C.ink, border: `1px solid ${C.line}` }}
-                    >
-                      {COUNTRIES.map((c) => (
-                        <option key={c.iso} value={c.iso}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(country) => setF((s) => ({ ...s, country }))}
+                      options={COUNTRIES.map((c) => ({
+                        value: c.iso,
+                        label: c.label,
+                        short: c.dial,
+                      }))}
+                    />
                     <input
                       className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
                       type="tel"
@@ -369,27 +456,38 @@ export default function CheckoutPage() {
                   >
                     Are you a working professional or a homemaker?
                   </span>
-                  <select
-                    className="w-full rounded-xl px-4 py-3 text-[15px] outline-none"
+                  {/* The "Select one" row is a PLACEHOLDER, not an option.
+                      As a disabled <option> it still appeared in the native
+                      list as a greyed, unpickable row; here it is the button's
+                      empty-state label and never shows up as something to
+                      choose. The two real answers are unchanged. */}
+                  <ThemedSelect
+                    placeholder="Select one"
                     value={f.occupation}
-                    onChange={(e) => setF((s) => ({ ...s, occupation: e.target.value }))}
-                    aria-invalid={(touched && !v.occupation) || undefined}
-                    style={{
-                      background: C.page,
-                      color: f.occupation ? C.ink : C.inkSoft,
-                      border: `1px solid ${touched && !v.occupation ? C.error : C.line}`,
-                    }}
-                  >
-                    <option value="" disabled>
-                      Select one
-                    </option>
-                    {OCCUPATIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(occupation) => setF((s) => ({ ...s, occupation }))}
+                    invalid={touched && !v.occupation}
+                    options={OCCUPATIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  />
                 </label>
+              </div>
+
+              {/* ══ THE TWO ADD-ONS ═══════════════════════════════════════
+                  Placed AFTER the form and BEFORE the pay button, which is
+                  where the reference funnel puts them and where they work:
+                  the buyer has already committed effort by filling the form,
+                  and the next thing they look for is the button. An upsell
+                  above the form is read as an obstacle; one below the button
+                  is never seen at all. */}
+              <div className="mt-7 space-y-3">
+                {ADDONS.map((a, i) => (
+                  <AddonCard
+                    key={a.id}
+                    addon={a}
+                    on={addons.has(a.id)}
+                    onToggle={() => toggleAddon(a.id)}
+                    second={i === 1}
+                  />
+                ))}
               </div>
 
               {touched && !valid && (
@@ -414,10 +512,15 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       Pay{' '}
-                      {LIST_PRICE && (
+                      {/* The struck list price is dropped once an add-on is
+                          ticked. It anchors the SEAT against ₹521; beside a
+                          total that now includes a ₹1,500 session it would
+                          read as a discount on the whole basket, which it is
+                          not. */}
+                      {LIST_PRICE && !addonIds.length && (
                         <s className="mr-1 font-semibold opacity-70 decoration-2">{LIST_PRICE}</s>
                       )}
-                      {PRICE} &amp; Book My Seat
+                      {inr(totalRupees)} &amp; Book My Seat
                     </>
                   )}
                 </span>
@@ -472,7 +575,7 @@ export default function CheckoutPage() {
 
             {/* Phones see what they are paying for before the form. */}
             <div className="order-first lg:order-none lg:sticky lg:top-8">
-              <OrderSummary />
+              <OrderSummary addonIds={addonIds} totalRupees={totalRupees} />
             </div>
           </div>
         </div>
@@ -480,10 +583,15 @@ export default function CheckoutPage() {
 
       <SiteFooter />
 
-      {/* Phones only: room for the docked bar, then the bar itself. */}
-      <div aria-hidden className="lg:hidden" style={{ height: 'calc(116px + env(safe-area-inset-bottom))' }} />
+      {/* ══ PHONES: the docked bar, and the room reserved for it ═════════
+          The spacer height is MEASURED, not guessed. The bar grows by a line
+          when an add-on is ticked (it names what was added), so a hardcoded
+          height is correct only in one of four states and the footer's legal
+          text ends up under the bar in the other three. */}
+      <div aria-hidden className="lg:hidden" style={{ height: dockHeight }} />
       <div
-        className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
+        ref={dockRef}
+        className="pp-dock fixed inset-x-0 bottom-0 z-50 lg:hidden"
         style={{
           background: C.surface,
           borderTop: `1px solid ${C.line}`,
@@ -501,15 +609,46 @@ export default function CheckoutPage() {
           </span>{' '}
           Seats Left - Booking Closes Once Full
         </p>
+
+        {/* ══ THE ADD-ONS, IN THE DOCK ═══════════════════════════════════
+            The same two controls as the full cards, bound to the same state,
+            so ticking either surface moves the other. They live here because
+            on a phone the cards sit below six form fields — the upsell was
+            only ever seen by someone who scrolled past the thing they came
+            to do.
+
+            These REPLACE the "Seat ₹1 + Recordings ₹500" breakdown line that
+            used to sit here. The rows now say what was added and what each
+            costs, so the line was the same information twice in a bar whose
+            every row costs the buyer screen. */}
+        <div className="mx-auto mt-2 max-w-6xl space-y-1.5 px-4">
+          {ADDONS.map((a, i) => (
+            <AddonMiniRow
+              key={a.id}
+              addon={a}
+              on={addons.has(a.id)}
+              onToggle={() => toggleAddon(a.id)}
+              second={i === 1}
+            />
+          ))}
+        </div>
+
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 pb-3 pt-2">
           <div className="shrink-0">
             <p className="font-display text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: C.inkSoft }}>
               Total
             </p>
-            <p className="font-display text-[20px] font-extrabold leading-tight tabular-nums" style={{ color: C.ink }}>
-              {PRICE}
+            {/* `key` on the total so the flash animation re-runs on every new
+                value. This is the one thing that SHOULD re-animate per tick:
+                it is the feedback that the tick registered. */}
+            <p
+              key={totalRupees}
+              className="pp-total-flash font-display text-[20px] font-extrabold leading-tight tabular-nums"
+              style={{ color: C.ink }}
+            >
+              {inr(totalRupees)}
             </p>
-            {LIST_PRICE && (
+            {LIST_PRICE && !addonIds.length && (
               <s className="block text-[12px] font-semibold leading-none decoration-2" style={{ color: C.inkSoft }}>
                 {LIST_PRICE}
               </s>
@@ -526,6 +665,154 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/* ══ One add-on ═════════════════════════════════════════════════════════
+   A real <input type="checkbox"> inside a <label>, not a div with onClick.
+   That is not pedantry: it gives space-to-toggle, a single tab stop, native
+   announcement of the checked state, and it keeps working if the JS that
+   styles it fails. The input is visually hidden so the whole card is the hit
+   area; the drawn box in `.pp-addon-box` is what the eye reads. ────────── */
+function AddonCard({
+  addon,
+  on,
+  onToggle,
+  second,
+}: {
+  addon: (typeof ADDONS)[number];
+  on: boolean;
+  onToggle: () => void;
+  second: boolean;
+}) {
+  return (
+    <label
+      className={`pp-addon ${second ? 'pp-addon--b' : ''}`}
+      data-on={on ? 'true' : 'false'}
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={onToggle}
+        className="absolute h-px w-px opacity-0"
+        style={{ clipPath: 'inset(50%)' }}
+      />
+
+      <span className="flex items-start gap-3">
+        <span className="pp-addon-box" aria-hidden>
+          <Check weight="bold" className="h-3.5 w-3.5" />
+        </span>
+
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className={`pp-addon-flag ${second ? '' : 'pp-addon-flag--accent'}`}>
+              <span className="pp-addon-dot" aria-hidden />
+              {addon.flag}
+            </span>
+            <span className="pp-addon-delta ml-auto text-[14px]">
+              + {inr(addon.rupees)}
+            </span>
+          </span>
+
+          <span
+            className="mt-2 block font-display text-[14.5px] font-extrabold leading-snug sm:text-[15.5px]"
+            style={{ color: C.ink }}
+          >
+            {addon.title}
+          </span>
+          <span className="mt-1 block text-[12.5px] leading-relaxed" style={{ color: C.inkSoft }}>
+            {addon.blurb}
+          </span>
+
+          <span className="mt-2.5 block space-y-1.5">
+            {addon.bullets.map((b) => (
+              <span key={b} className="flex gap-2 text-[12.5px] leading-snug">
+                <CheckCircle
+                  weight="fill"
+                  className="mt-[2px] h-3.5 w-3.5 shrink-0"
+                  style={{ color: C.accent }}
+                />
+                <span style={{ color: C.inkSoft }}>{b}</span>
+              </span>
+            ))}
+          </span>
+
+          {/* Both strings render; opacity swaps them. Mounting them
+              conditionally would change the card's height on tick and shift
+              the card below it under the user's thumb mid-tap. */}
+          <span
+            className="pp-addon-swap mt-3 font-display text-[12px] font-bold uppercase tracking-[0.1em]"
+            style={{ color: C.accent }}
+          >
+            <span>👉 Tap to add for {inr(addon.rupees)} more</span>
+            <span style={{ color: '#047857' }}>✓ Added · {inr(addon.rupees)}. Tap to remove</span>
+          </span>
+        </span>
+      </span>
+    </label>
+  );
+}
+
+/* ══ One add-on, compact, for the docked bar ════════════════════════════
+   A SECOND control for the same state, not a second piece of state. Ticking
+   here moves the full card and vice versa, because both read and write the
+   one `addons` Set on the page.
+
+   It carries its own `aria-label` rather than inheriting the card's wording:
+   a screen reader now meets two checkboxes for the same thing, and two
+   controls reading "Workshop recordings, Day 1 + Day 2" with no way to tell
+   them apart is worse than one. The label here names the action and the
+   price, which is what this row actually offers. ────────────────────────── */
+function AddonMiniRow({
+  addon,
+  on,
+  onToggle,
+  second,
+}: {
+  addon: (typeof ADDONS)[number];
+  on: boolean;
+  onToggle: () => void;
+  second: boolean;
+}) {
+  return (
+    <label
+      className={`pp-addon-mini ${second ? 'pp-addon-mini--b' : ''}`}
+      data-on={on ? 'true' : 'false'}
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={onToggle}
+        aria-label={`${addon.miniLabel} for ${inr(addon.rupees)}`}
+        className="absolute h-px w-px opacity-0"
+        style={{ clipPath: 'inset(50%)' }}
+      />
+
+      <span className="pp-addon-box pp-addon-box--sm" aria-hidden>
+        <Check weight="bold" className="h-3 w-3" />
+      </span>
+
+      <span
+        className={`pp-addon-flag pp-addon-flag--sm ${second ? '' : 'pp-addon-flag--accent'}`}
+        aria-hidden
+      >
+        <span className="pp-addon-dot" />
+        {addon.flag}
+      </span>
+
+      {/* `min-w-0` + `truncate` on the label, and `shrink-0` on the price:
+          when the row runs out of room at 320px it is the sentence that
+          shortens, never the number. */}
+      <span
+        className="min-w-0 flex-1 truncate text-[12px] font-semibold"
+        style={{ color: C.ink }}
+      >
+        {addon.miniLabel}
+      </span>
+      <span className="pp-addon-delta shrink-0 text-[12.5px]">
+        + {inr(addon.rupees)}
+      </span>
+    </label>
   );
 }
 
@@ -546,7 +833,13 @@ function Header() {
   );
 }
 
-function OrderSummary() {
+function OrderSummary({
+  addonIds,
+  totalRupees,
+}: {
+  addonIds: AddonId[];
+  totalRupees: number;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -624,6 +917,39 @@ function OrderSummary() {
         </div>
       </div>
 
+      {/* Each ticked add-on as its own line item, mirroring the seat row
+          above it. Outside the collapsible details on purpose: on a phone the
+          summary is closed by default, and an add-on the buyer cannot see
+          they are being charged for is the line that gets disputed. */}
+      {addonIds.map((id) => (
+        <div
+          key={id}
+          className="mt-3 flex items-start gap-3 rounded-2xl p-3"
+          style={{ background: 'rgba(16,185,129,0.08)', border: `1px solid ${C.accent}` }}
+        >
+          <span
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-xl sm:h-14 sm:w-14"
+            style={{ background: C.accent }}
+          >
+            <Check weight="bold" className="h-5 w-5" style={{ color: C.onAccent }} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-semibold leading-snug sm:text-[14px]" style={{ color: C.ink }}>
+              {ADDON_BY_ID[id].title}
+            </p>
+            <p className="mt-0.5 text-[11px] sm:text-[11.5px]" style={{ color: C.inkSoft }}>
+              Added to your order
+            </p>
+          </div>
+          <div
+            className="shrink-0 text-right font-display text-[14px] font-extrabold tabular-nums sm:text-[15px]"
+            style={{ color: C.ink }}
+          >
+            {inr(ADDON_BY_ID[id].rupees)}
+          </div>
+        </div>
+      ))}
+
       <div id="order-summary-details" className={`${open ? 'block' : 'hidden'} lg:block`}>
         <div className="mt-4 space-y-1.5">
           <p
@@ -679,6 +1005,16 @@ function OrderSummary() {
               {inr(VALUE_TOTAL)}
             </s>
           </div>
+
+          {/* The add-ons again, as money rather than as objects. The rows
+              above say what was added; these say what it costs, in the column
+              the eye is already scanning for numbers. */}
+          {addonIds.map((id) => (
+            <div key={id} className="flex justify-between font-semibold" style={{ color: C.ink }}>
+              <span className="truncate pr-3">{ADDON_BY_ID[id].shortName}</span>
+              <span className="tabular-nums">+{inr(ADDON_BY_ID[id].rupees)}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -695,10 +1031,14 @@ function OrderSummary() {
           Total
         </span>
         <div
-          className="text-right font-display text-[26px] font-extrabold leading-none tabular-nums sm:text-[32px]"
+          key={totalRupees}
+          className="pp-total-flash text-right font-display text-[26px] font-extrabold leading-none tabular-nums sm:text-[32px]"
           style={{ color: C.accent }}
         >
-          {LIST_PRICE && (
+          {/* Anchor dropped once an add-on is ticked: ₹521 is the SEAT's list
+              price, and beside a basket total it would claim a discount on
+              the add-ons that does not exist. */}
+          {LIST_PRICE && !addonIds.length && (
             <s
               className="mr-2 text-[15px] font-semibold decoration-2 sm:text-[17px]"
               style={{ color: C.onDarkMute }}
@@ -706,7 +1046,7 @@ function OrderSummary() {
               {LIST_PRICE}
             </s>
           )}
-          {PRICE}
+          {inr(totalRupees)}
         </div>
       </div>
 

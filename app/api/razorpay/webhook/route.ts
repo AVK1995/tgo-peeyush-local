@@ -2,7 +2,19 @@ import crypto from 'crypto';
 
 import { NextResponse } from 'next/server';
 
-import { CHECKOUT_CONFIG, capiReady, isTestMode } from '@/lib/checkout-config';
+import {
+  CALL_BOOKING_URL,
+  DATES,
+  SESSION_TIME_TZ,
+  WHATSAPP_INVITE,
+  WHATSAPP_RECORDINGS_INVITE,
+} from '@/app/_landing/offer';
+import {
+  CHECKOUT_CONFIG,
+  capiReady,
+  isTestMode,
+  orderPricing,
+} from '@/lib/checkout-config';
 import { ga4ServerReady, sendGa4Purchase } from '@/lib/ga4-server';
 import { sendCapiEvent, type Occupation } from '@/lib/meta-capi';
 import { readOrderContext } from '@/lib/order-notes';
@@ -111,6 +123,22 @@ export async function POST(req: Request) {
 
   const valueRupees = amountRupees || CHECKOUT_CONFIG.amountRupees;
 
+  /* ── WHICH BUNDLE WAS BOUGHT ────────────────────────────────────────────
+     Read from the order's own `addons` note, written at create-order time
+     from the server's resolution of the basket. FULFILMENT BRANCHES ON THIS:
+     a buyer who paid for the recordings is owed them, one who paid for the
+     private session is owed a slot, and Pabbly has no other reliable way to
+     tell the four baskets apart.
+
+     Run back through orderPricing so the product name, the bundle code and
+     the booleans are built by the SAME function that priced the order — one
+     definition of what "base_recording_call" means, not two that can drift.
+
+     An order placed before this note existed resolves to the plain seat,
+     which is the safe direction to be wrong in: it under-promises rather
+     than handing over something nobody paid for. */
+  const basket = orderPricing(notes.addons);
+
   /* Everything the browser knew, written into the order at create time and
      unpacked here. This is the ONLY route back to the buyer's own IP, user
      agent, campaign and landing page: this request came from Razorpay, so its
@@ -183,8 +211,14 @@ export async function POST(req: Request) {
         transactionId: paymentId,
         valueRupees,
         currency: CHECKOUT_CONFIG.currency,
-        itemId: 'peeyush-5day-health-reset',
-        itemName: CHECKOUT_CONFIG.contentName,
+        /* Per bundle, so the four baskets do not collapse into one line item
+           in GA4 and the add-on take-rate is readable from the reporting
+           rather than only from the sheet.
+
+           (The id was still `peeyush-5day-health-reset`, left over from the
+           funnel this project was before the workshop rebuild.) */
+        itemId: `peeyush-2day-breath-workshop-${basket.bundle}`,
+        itemName: basket.productName,
       })
     : { ok: false, status: 0 };
 
@@ -227,8 +261,36 @@ export async function POST(req: Request) {
         paymentId,
         orderId,
         currency: CHECKOUT_CONFIG.currency,
-        product: CHECKOUT_CONFIG.contentName,
+        product: basket.productName,
         occupation: ctx.occupation,
+        /* ── THE BRANCH KEYS ─────────────────────────────────────────────
+           `bundle` is the stable enum a Pabbly router should switch on.
+           `product` above is prose and changes with the copy; `amount` stops
+           identifying a basket at the first discount code.
+
+           The two booleans are the entitlements that actually differ,
+           pre-computed so the workflow does not re-encode the rule
+           "base_recording_call means both" in two places. */
+        bundle: basket.bundle,
+        addons: basket.addonsCsv,
+        hasRecording: basket.hasRecording,
+        hasCall: basket.hasCall,
+        /* The money, split, so the sheet can report add-on revenue without
+           subtracting a seat price it would have to hardcode. */
+        baseRupees: basket.baseRupees,
+        addonRupees: basket.addonRupees,
+
+        /* The cohort and the links the confirmation messages carry. */
+        workshopDates: DATES,
+        sessionTime: SESSION_TIME_TZ,
+        whatsappGroupUrl: WHATSAPP_INVITE,
+        /* ⚠️ GATED ON THE PURCHASE, not merely passed through. A buyer who
+           did not pay for the recordings gets an empty string, so no Pabbly
+           template can hand them the group — and the same for the booking
+           link. The entitlement is enforced here, where the order is known,
+           rather than trusted to a condition in the workflow. */
+        recordingsGroupUrl: basket.hasRecording ? WHATSAPP_RECORDINGS_INVITE : '',
+        bookingUrl: basket.hasCall ? CALL_BOOKING_URL : '',
       })
     : { ok: false, status: 0 };
 

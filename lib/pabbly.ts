@@ -67,6 +67,48 @@ export type PabblyPurchase = {
   currency: string;
   product: string;
   occupation: string;
+
+  /* ── WHICH BUNDLE (the add-on checkout, Oct 2026) ──────────────────────
+     Four baskets are possible: the seat alone, the seat plus recordings, the
+     seat plus the private session, or both. These are how the workflow tells
+     them apart.
+
+     `bundle` is the stable enum — "base", "base_recording", "base_call",
+     "base_recording_call" — and is what a router should branch on. `addons`
+     is the same thing as a CSV for a spreadsheet column. The two booleans are
+     the entitlements that actually differ, so the rule "which bundle owes
+     recordings" lives in one place rather than being re-derived in Pabbly.
+
+     ⚠️ DO NOT BRANCH ON `amount`. It identifies a basket only until the first
+     discount code or price change, and a mis-inference either withholds
+     something the buyer paid for or hands over something they did not. */
+  bundle: string;
+  addons: string;
+  hasRecording: boolean;
+  hasCall: boolean;
+  /** The seat and the add-ons separately, so add-on revenue is a column
+   *  rather than a subtraction against a hardcoded seat price. */
+  baseRupees: number;
+  addonRupees: number;
+
+  /* ── WHAT THE CONFIRMATION EMAIL AND WHATSAPP MESSAGE NEED ─────────────
+     The cohort's dates and time, and the links the buyer must act on. They
+     ride on the payload rather than being pasted into the Pabbly templates
+     because they are already env-driven here: when a cohort moves or a group
+     is recreated, one env change updates the site AND every message, instead
+     of someone remembering to edit four templates.
+
+     ⚠️ THE TWO ADD-ON LINKS ARE EMPTY UNLESS THAT ADD-ON WAS BOUGHT. That is
+     an entitlement check, not a convenience: if the recordings group url were
+     always present, one careless template edit in Pabbly would post it to
+     every ₹99 buyer and the add-on would stop being a product. An empty
+     string also makes the Pabbly condition trivial — "if recordings_group_url
+     is not empty" — without trusting a boolean to have been mapped. */
+  workshopDates: string;
+  sessionTime: string;
+  whatsappGroupUrl: string;
+  recordingsGroupUrl: string;
+  bookingUrl: string;
 };
 
 /* Every key is emitted on every call, empty string where unknown. Pabbly
@@ -140,6 +182,22 @@ export async function sendPabblyPurchase(
         currency: s(p.currency),
         product: s(p.product),
         occupation: s(p.occupation),
+        bundle: s(p.bundle),
+        addons: s(p.addons),
+        /* Real booleans, not the strings "true"/"false": a Pabbly router
+           condition on a non-empty string treats "false" as true, which would
+           send the recordings to every buyer who did not pay for them. */
+        has_recording: Boolean(p.hasRecording),
+        has_call: Boolean(p.hasCall),
+        base_amount: p.baseRupees,
+        addon_amount: p.addonRupees,
+        workshop_dates: s(p.workshopDates),
+        session_time: s(p.sessionTime),
+        whatsapp_group_url: s(p.whatsappGroupUrl),
+        /* Empty unless the matching add-on was bought — see the note on the
+           type above. Branch on these being non-empty in Pabbly. */
+        recordings_group_url: s(p.recordingsGroupUrl),
+        booking_url: s(p.bookingUrl),
       }),
     });
     return { ok: res.ok, status: res.status };
